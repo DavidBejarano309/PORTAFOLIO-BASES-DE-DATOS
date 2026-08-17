@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>David Felipe Bejarano Montes | E-Portafolio Bases de Datos 2</title>
+<meta name="description" content="E-portafolio de David Felipe Bejarano Montes — Ingeniería de Sistemas, Universidad El Bosque. Evidencias del curso Bases de Datos 2." />
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ===== NAV ===== -->
+  <header class="nav" id="nav">
+    <div class="nav__inner">
+      <a href="#inicio" class="nav__brand">
+        <span class="nav__prompt">&gt;_</span> david<span class="dim">.db</span>
+      </a>
+      <button class="nav__toggle" id="navToggle" aria-label="Abrir menú" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <nav class="nav__links" id="navLinks">
+        <a href="#inicio">inicio</a>
+        <a href="#sobre-mi">sobre_mi</a>
+        <a href="#evidencias">evidencias</a>
+        <a href="#presentacion">presentación</a>
+        <a href="#habilidades">habilidades</a>
+        <a href="#contacto">contacto</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- ===== HERO ===== -->
+    <section class="hero" id="inicio">
+      <div class="hero__grid">
+        <div class="hero__copy">
+          <p class="eyebrow">-- registro / bases_de_datos_2</p>
+          <h1>Hola, soy David</h1>
+          <p class="hero__role">Estudiante de Ingeniería de Sistemas</p>
+          <p class="hero__desc">
+            Bienvenido a mi e-portafolio. Este espacio lo construí durante el curso
+            <strong>Bases de Datos 2</strong> en la Universidad El Bosque, para publicar aquí las
+            evidencias y proyectos del semestre.
+          </p>
+          <div class="hero__actions">
+            <a href="#presentacion" class="btn btn--primary">Ver mi presentación</a>
+            <a href="#evidencias" class="btn btn--ghost">Ver mis evidencias</a>
+          </div>
+        </div>
+
+        <div class="terminal" id="terminal" aria-hidden="false">
+          <div class="terminal__bar">
+            <span class="dot dot--r"></span><span class="dot dot--y"></span><span class="dot dot--g"></span>
+            <span class="terminal__title">consulta.sql</span>
+          </div>
+          <div class="terminal__body">
+            <p class="terminal__line">
+              <span class="prompt">db&gt;</span>
+              <span id="typedQuery" class="typed"></span><span class="cursor" id="cursor">▌</span>
+            </p>
+            <div class="terminal__result" id="terminalResult" hidden>
+              <table>
+                <thead>
+                  <tr><th>campo</th><th>valor</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>nombre</td><td>David Felipe Bejarano Montes</td></tr>
+                  <tr><td>carrera</td><td>Ingeniería de Sistemas</td></tr>
+                  <tr><td>universidad</td><td>Universidad El Bosque</td></tr>
+                  <tr><td>meta</td><td>Ingeniero de Datos</td></tr>
+                </tbody>
+              </table>
+              <p class="terminal__rows">4 rows returned</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== SOBRE MI ===== -->
+    <section class="section" id="sobre-mi">
+      <p class="eyebrow">-- tabla: sobre_mi</p>
+      <h2 class="section__title">Sobre mí</h2>
+      <div class="about__grid">
+        <p class="about__text">
+          Me apasiona el mundo de los datos: mi meta es especializarme como
+          <strong>Ingeniero de Datos</strong>, por eso el curso de Bases de Datos 2 es clave en mi
+          formación. Fuera de la programación, disfruto ir al gimnasio, viajar y los videojuegos.
+        </p>
+        <p class="about__text">
+          A lo largo del semestre fui agregando aquí scripts SQL, PL/SQL, trabajos de NoSQL y el
+          avance del proyecto final del curso.
+        </p>
+      </div>
+    </section>
+
+    <!-- ===== EVIDENCIAS ===== -->
+    <section class="section" id="evidencias">
+      <p class="eyebrow">-- tabla: evidencias</p>
+      <h2 class="section__title">Evidencias</h2>
+      <p class="section__lead">
+        Categoría por categoría, así organicé las evidencias del curso Bases de Datos 2.
+      </p>
+
+      <div class="cards">
+        <article class="card">
+          <span class="card__tag">SQL</span>
+          <h3>Scripts SQL</h3>
+          <p>Consultas y scripts SQL desarrollados durante el curso.</p>
+        </article>
+        <article class="card">
+          <span class="card__tag">PL/SQL</span>
+          <h3>Scripts PL/SQL</h3>
+          <p>Procedimientos, funciones y triggers implementados en PL/SQL.</p>
+        </article>
+        <article class="card">
+          <span class="card__tag">NoSQL</span>
+          <h3>Trabajos NoSQL</h3>
+          <p>Ejercicios y trabajos desarrollados con bases de datos NoSQL.</p>
+        </article>
+        <article class="card">
+          <span class="card__tag">PROY</span>
+          <h3>Proyecto final</h3>
+          <p>Avances y entregas del proyecto final del semestre.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ===== PRESENTACION ===== -->
+    <section class="section section--split" id="presentacion">
+      <div class="presentacion__photo">
+        <img src="profile.webp" alt="Foto de David Felipe Bejarano Montes" width="300" height="300" loading="lazy" />
+      </div>
+      <div class="presentacion__copy">
+        <p class="eyebrow">-- tabla: presentacion</p>
+        <h2 class="section__title">Presentación</h2>
+        <p class="presentacion__name">David Felipe Bejarano Montes</p>
+        <p class="dim">Me gusta que me llamen: David</p>
+        <p class="about__text">
+          Soy estudiante de Ingeniería de Sistemas en la Universidad El Bosque. Fuera de la
+          programación me gusta el gimnasio, viajar y los videojuegos. Mi meta profesional es
+          especializarme como Ingeniero de Datos, por eso todo lo relacionado con SQL, bases de
+          datos relacionales y no relacionales es fundamental en mi formación.
+        </p>
+        <blockquote class="quote">
+          "Este semestre quiero demostrar que puedo dominar SQL y las bases de datos relacionales
+          y no relacionales, dando un paso firme hacia mi meta de ser Ingeniero de Datos."
+        </blockquote>
+
+        <h3 class="video__title">Video de presentación</h3>
+        <div class="video__frame">
+          <iframe
+            src="https://www.youtube.com/embed/jQqlW7JPbJc"
+            title="Video de presentación de David Felipe Bejarano Montes"
+            frameborder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen
+            loading="lazy"
+          ></iframe>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== HABILIDADES ===== -->
+    <section class="section" id="habilidades">
+      <p class="eyebrow">-- tabla: habilidades</p>
+      <h2 class="section__title">Habilidades técnicas</h2>
+      <div class="skills">
+        <span class="skill">SQL</span>
+        <span class="skill">PL/SQL</span>
+        <span class="skill">PostgreSQL</span>
+        <span class="skill">MongoDB</span>
+        <span class="skill">NoSQL</span>
+        <span class="skill">Java</span>
+        <span class="skill">Python</span>
+        <span class="skill">Spring Boot</span>
+        <span class="skill">Flask</span>
+        <span class="skill">Docker</span>
+        <span class="skill">VirtualBox</span>
+        <span class="skill">Azure / Databricks</span>
+      </div>
+    </section>
+
+    <!-- ===== CONTACTO ===== -->
+    <section class="section section--contact" id="contacto">
+      <p class="eyebrow">-- tabla: contacto</p>
+      <h2 class="section__title">Contacto</h2>
+      <p class="section__lead">¿Hablamos de datos, proyectos o ideas? Escríbeme.</p>
+      <a class="btn btn--primary" href="mailto:TU_CORREO@ejemplo.com">Enviar correo</a>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>&copy; <span id="year"></span> David Felipe Bejarano Montes — E-Portafolio Bases de Datos 2</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
