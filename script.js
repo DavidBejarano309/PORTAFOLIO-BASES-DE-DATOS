@@ -53,6 +53,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+
+  // Resaltado de sintaxis SQL en los fragmentos de código
+  const KW = /\b(SELECT|FROM|WHERE|AND|OR|FOR|UPDATE|SKIP|LOCKED|MERGE|INTO|USING|ON|WHEN|MATCHED|THEN|SET|GROUP BY|CREATE|OR REPLACE|PROCEDURE|INDEX|IS|IN|OUT|BEGIN|IF|END|RAISE|EXCEPTION|DEFAULT|NUMBER|VARCHAR2|AS|SUM|UPPER|ROWNUM)\b/g;
+  document.querySelectorAll('code[data-sql]').forEach(el => {
+    const raw = el.textContent;
+    const esc = t => t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const out = raw.split('\n').map(line => {
+      const ci = line.indexOf('--');
+      let code = ci >= 0 ? line.slice(0, ci) : line;
+      const cm = ci >= 0 ? line.slice(ci) : '';
+      code = esc(code)
+        .replace(/('[^']*')/g, '<span class="tok-str">$1</span>')
+        .replace(KW, m => `<span class="tok-kw">${m}</span>`);
+      return code + (cm ? `<span class="tok-cm">${esc(cm)}</span>` : '');
+    }).join('\n');
+    el.innerHTML = out;
+  });
+
   // Reveal de secciones al hacer scroll
   const revealTargets = document.querySelectorAll(
     '.section__title, .cards, .card, .about__grid, .presentacion__photo, .presentacion__copy, .skills, .quote'

@@ -101,33 +101,339 @@
     <!-- ===== EVIDENCIAS ===== -->
     <section class="section" id="evidencias">
       <p class="eyebrow">-- tabla: evidencias</p>
-      <h2 class="section__title">Evidencias</h2>
+      <h2 class="section__title">Evidencias del curso</h2>
       <p class="section__lead">
-        Categoría por categoría, así organicé las evidencias del curso Bases de Datos 2.
+        Cada módulo es una línea de tiempo: de arriba hacia abajo, lo que trabajé, cómo lo resolví y dónde ver el entregable.
       </p>
 
-      <div class="cards">
-        <article class="card">
+      <div class="cards index">
+        <a class="card card--link" href="#mod-sql">
           <span class="card__tag">SQL</span>
-          <h3>Scripts SQL</h3>
-          <p>Consultas y scripts SQL desarrollados durante el curso.</p>
-        </article>
-        <article class="card">
-          <span class="card__tag">PL/SQL</span>
-          <h3>Scripts PL/SQL</h3>
-          <p>Procedimientos, funciones y triggers implementados en PL/SQL.</p>
-        </article>
-        <article class="card">
-          <span class="card__tag">NoSQL</span>
-          <h3>Trabajos NoSQL</h3>
-          <p>Ejercicios y trabajos desarrollados con bases de datos NoSQL.</p>
-        </article>
-        <article class="card">
-          <span class="card__tag">PROY</span>
+          <h3>SQL avanzado</h3>
+          <p>Transacciones, índices y SQL analítico.</p>
+          <span class="card__status card__status--ok">1 taller publicado</span>
+        </a>
+        <a class="card card--link" href="#mod-plsql">
+          <span class="card__tag card__tag--amber">PL/SQL</span>
+          <h3>Programación en Oracle</h3>
+          <p>Procedimientos, cursores y disparadores.</p>
+          <span class="card__status card__status--ok">1 taller publicado</span>
+        </a>
+        <a class="card card--link" href="#mod-nosql">
+          <span class="card__tag card__tag--violet">NoSQL</span>
+          <h3>Bases no relacionales</h3>
+          <p>Modelado de documentos y consultas.</p>
+          <span class="card__status">Próximamente</span>
+        </a>
+        <a class="card card--link" href="#mod-proyecto">
+          <span class="card__tag card__tag--rose">PROY</span>
           <h3>Proyecto final</h3>
-          <p>Avances y entregas del proyecto final del semestre.</p>
-        </article>
+          <p>Sistema integral de reservas y alquiler.</p>
+          <span class="card__status">En desarrollo</span>
+        </a>
       </div>
+
+      <!-- ---------- MÓDULO SQL ---------- -->
+      <article class="module module--cyan" id="mod-sql">
+        <header class="module__head">
+          <p class="module__kicker">Módulo SQL</p>
+          <h3 class="module__title">Caso Banco Andino: transacciones, índices y SQL analítico</h3>
+          <dl class="meta">
+            <div><dt>Fecha</dt><dd>13/09/2026</dd></div>
+            <div><dt>Equipo</dt><dd>David Bejarano y Samuel Camelo</dd></div>
+            <div><dt>Entorno</dt><dd>Oracle Autonomous Database, SQL Developer</dd></div>
+          </dl>
+          <p class="module__desc">
+            Taller integrador sobre un banco ficticio. Cada ejercicio pedía provocar un problema real
+            (pérdida de saldo, consultas lentas, bloqueos), explicarlo con evidencia del motor y corregirlo.
+          </p>
+          <div class="module__actions">
+            <a class="btn btn--primary" href="evidencias/sql/banco-andino-informe.pdf" target="_blank" rel="noopener">Abrir informe (PDF, 32 págs.)</a>
+          </div>
+        </header>
+
+        <ol class="timeline">
+          <li class="node">
+            <span class="node__dot" aria-hidden="true"></span>
+            <div class="node__body">
+              <p class="node__step">Parte 1 · 15 puntos</p>
+              <h4>Integridad transaccional y control de concurrencia</h4>
+              <p>
+                Reproduje una actualización perdida entre dos sesiones (quedaron 800.000 en vez de 500.000)
+                y la resolví con bloqueo pesimista, control optimista por versión y reparto de tareas con
+                <code>SKIP LOCKED</code>. También documenté un bloqueo de tabla por llave foránea sin índice
+                y un interbloqueo (<code>ORA-00060</code>) con su regla de prevención.
+              </p>
+              <ul class="chips">
+                <li>FOR UPDATE</li><li>Versionado optimista</li><li>SKIP LOCKED</li><li>Deadlock</li><li>FK sin índice</li>
+              </ul>
+              <details class="snippet">
+                <summary>Ver fragmento: cola de compensación sin colisiones</summary>
+<pre><code data-sql>SELECT id_tarea, id_transferencia
+  FROM tarea_compensacion
+ WHERE estado = 'PENDIENTE'
+   AND ROWNUM &lt;= 5
+   FOR UPDATE SKIP LOCKED;</code></pre>
+              </details>
+            </div>
+          </li>
+
+          <li class="node">
+            <span class="node__dot" aria-hidden="true"></span>
+            <div class="node__body">
+              <p class="node__step">Parte 2 · 15 puntos</p>
+              <h4>Indexación y lectura de planes de ejecución</h4>
+              <p>
+                Sobre una tabla de 200.000 transferencias medí el costo antes y después de cada índice
+                con Explain Plan y Autotrace. Analicé el orden de columnas en índices compuestos,
+                los índices que la consulta invalida al aplicar funciones, la selectividad, el
+                <em>clustering factor</em>, los índices de cobertura y el costo de escritura de cada índice extra.
+              </p>
+              <ul class="chips">
+                <li>Explain Plan</li><li>Índice compuesto</li><li>Índice por función</li><li>Covering index</li><li>Clustering factor</li>
+              </ul>
+              <details class="snippet">
+                <summary>Ver fragmento: índice que sí sirve para UPPER()</summary>
+<pre><code data-sql>-- Un índice normal no ayuda a: WHERE UPPER(nombre) = 'ANA'
+CREATE INDEX ix_cliente_nombre_upper
+    ON cliente (UPPER(nombre));</code></pre>
+              </details>
+            </div>
+          </li>
+
+          <li class="node">
+            <span class="node__dot" aria-hidden="true"></span>
+            <div class="node__body">
+              <p class="node__step">Parte 3 · 10 puntos</p>
+              <h4>SQL analítico, jerárquico y MERGE</h4>
+              <p>
+                Rankings por grupo (<code>RANK</code>, <code>DENSE_RANK</code>, <code>ROW_NUMBER</code>),
+                acumulados y variaciones, jerarquías con CTE recursiva, <code>PIVOT</code> y
+                <code>LISTAGG</code>. En el cierre mensual apliqué ajustes con <code>MERGE</code>
+                excluyendo las cuentas que quedarían en saldo negativo.
+              </p>
+              <ul class="chips">
+                <li>Funciones de ventana</li><li>CTE recursiva</li><li>MERGE</li><li>PIVOT</li><li>LISTAGG</li>
+              </ul>
+              <details class="snippet">
+                <summary>Ver fragmento: cierre mensual con MERGE</summary>
+<pre><code data-sql>MERGE INTO cuenta c
+USING (
+    SELECT id_cuenta, SUM(delta) AS delta
+      FROM ajuste_saldo
+     GROUP BY id_cuenta
+) a
+ON (c.id_cuenta = a.id_cuenta)
+WHEN MATCHED THEN
+    UPDATE SET c.saldo   = c.saldo + a.delta,
+               c.version = c.version + 1
+    WHERE c.saldo + a.delta &gt;= 0;</code></pre>
+              </details>
+            </div>
+          </li>
+        </ol>
+      </article>
+
+      <!-- ---------- MÓDULO PL/SQL ---------- -->
+      <article class="module module--amber" id="mod-plsql">
+        <header class="module__head">
+          <p class="module__kicker">Módulo PL/SQL</p>
+          <h3 class="module__title">Lógica de negocio en Oracle: inventario y ventas</h3>
+          <dl class="meta">
+            <div><dt>Fecha</dt><dd>03/10/2026</dd></div>
+            <div><dt>Equipo</dt><dd>David Bejarano, Samuel Camelo y Samuel Novoa</dd></div>
+            <div><dt>Entorno</dt><dd>Oracle Database 19c, SQL Developer</dd></div>
+          </dl>
+          <p class="module__desc">
+            Sistema de inventario y ventas de una ferretería, construido por capas: desde un procedimiento
+            simple hasta un paquete que factura un pedido completo. Cada objeto incluye su justificación de diseño.
+          </p>
+          <div class="module__actions">
+            <a class="btn btn--primary" href="evidencias/plsql/taller-plsql-informe.pdf" target="_blank" rel="noopener">Abrir informe (PDF, 41 págs.)</a>
+            <a class="btn btn--ghost" href="evidencias/plsql/taller-plsql.sql" download>Descargar código (.sql)</a>
+          </div>
+        </header>
+
+        <ol class="timeline">
+          <li class="node">
+            <span class="node__dot" aria-hidden="true"></span>
+            <div class="node__body">
+              <p class="node__step">Parte 1 · 8 puntos</p>
+              <h4>Procedimientos almacenados</h4>
+              <p>
+                Registro de productos con validación de precio y categoría, ajuste de stock protegido
+                contra concurrencia con <code>FOR UPDATE</code> y creación de pedidos que rechaza clientes
+                inactivos o sin cupo.
+              </p>
+              <ul class="chips">
+                <li>SP_REGISTRAR_PRODUCTO</li><li>SP_AJUSTAR_STOCK</li><li>SP_CREAR_PEDIDO</li>
+              </ul>
+              <details class="snippet">
+                <summary>Ver fragmento: firma y validaciones del primer procedimiento</summary>
+<pre><code data-sql>CREATE OR REPLACE PROCEDURE SP_REGISTRAR_PRODUCTO (
+    param_codigo        IN  VARCHAR2,
+    param_nombre        IN  VARCHAR2,
+    param_id_categoria  IN  NUMBER,
+    param_precio        IN  NUMBER,
+    param_costo         IN  NUMBER,
+    param_stock_minimo  IN  NUMBER DEFAULT 0,
+    param_id_producto   OUT NUMBER
+) IS
+    vn_categoria NUMBER;
+    e_precio_invalido     EXCEPTION;
+    e_categoria_no_existe EXCEPTION;
+BEGIN
+    IF param_precio &lt;= param_costo THEN
+        RAISE e_precio_invalido;
+    END IF;
+    ...</code></pre>
+              </details>
+            </div>
+          </li>
+
+          <li class="node">
+            <span class="node__dot" aria-hidden="true"></span>
+            <div class="node__body">
+              <p class="node__step">Parte 2 · 8 puntos</p>
+              <h4>Funciones reutilizables</h4>
+              <p>
+                Stock disponible por bodega o consolidado, cupo de crédito y descuento por tramos con tope
+                acumulado. Muestro además por qué una función puede invocarse desde una consulta SQL.
+              </p>
+              <ul class="chips">
+                <li>FN_STOCK_DISPONIBLE</li><li>FN_CUPO_DISPONIBLE</li><li>FN_CALCULAR_DESCUENTO</li>
+              </ul>
+            </div>
+          </li>
+
+          <li class="node">
+            <span class="node__dot" aria-hidden="true"></span>
+            <div class="node__body">
+              <p class="node__step">Parte 3 · 10 puntos</p>
+              <h4>Procesamiento por cursores</h4>
+              <p>
+                Cursores explícitos y parametrizados, <code>WHERE CURRENT OF</code> para ajustar precios,
+                un <code>SYS_REFCURSOR</code> que entrega movimientos a quien lo consuma y carga masiva con
+                <code>BULK COLLECT</code> y <code>FORALL</code>.
+              </p>
+              <ul class="chips">
+                <li>OPEN / FETCH / CLOSE</li><li>FOR UPDATE</li><li>SYS_REFCURSOR</li><li>BULK COLLECT</li><li>FORALL</li>
+              </ul>
+            </div>
+          </li>
+
+          <li class="node">
+            <span class="node__dot" aria-hidden="true"></span>
+            <div class="node__body">
+              <p class="node__step">Parte 4 · 9 puntos</p>
+              <h4>Manejo de excepciones</h4>
+              <p>
+                Códigos de retorno para <code>NO_DATA_FOUND</code> y <code>TOO_MANY_ROWS</code>, excepciones
+                propias, errores de aplicación numerados, <code>PRAGMA EXCEPTION_INIT</code> y un registro
+                de errores que persiste aunque la transacción principal termine en <code>ROLLBACK</code>.
+              </p>
+              <ul class="chips">
+                <li>RAISE_APPLICATION_ERROR</li><li>EXCEPTION_INIT</li><li>Transacción autónoma</li><li>SQLCODE / SQLERRM</li>
+              </ul>
+            </div>
+          </li>
+
+          <li class="node">
+            <span class="node__dot" aria-hidden="true"></span>
+            <div class="node__body">
+              <p class="node__step">Parte 5 · 10 puntos</p>
+              <h4>Disparadores y reglas automáticas</h4>
+              <p>
+                Normalización de datos al insertar, auditoría de cambios de precio, validación de margen,
+                descuento automático de stock, recálculo de totales con <code>COMPOUND TRIGGER</code>
+                (evitando la tabla mutante) y una vista actualizable mediante <code>INSTEAD OF</code>.
+              </p>
+              <ul class="chips">
+                <li>BEFORE / AFTER</li><li>WHEN</li><li>COMPOUND TRIGGER</li><li>INSTEAD OF</li>
+              </ul>
+            </div>
+          </li>
+
+          <li class="node">
+            <span class="node__dot" aria-hidden="true"></span>
+            <div class="node__body">
+              <p class="node__step">Parte 6 · 5 puntos</p>
+              <h4>Caso integrador: facturación de un pedido</h4>
+              <p>
+                <code>PKG_VENTAS.SP_FACTURAR_PEDIDO</code> reúne lo anterior en una sola operación:
+                bloquea el pedido, valida su estado, acumula el subtotal, aplica el descuento, verifica el
+                cupo y, si algo falla, vuelve a un <code>SAVEPOINT</code> y registra el error.
+              </p>
+              <ul class="chips">
+                <li>Paquete</li><li>SAVEPOINT</li><li>Parámetros OUT</li><li>Registro de errores</li>
+              </ul>
+            </div>
+          </li>
+        </ol>
+      </article>
+
+      <!-- ---------- MÓDULO NOSQL ---------- -->
+      <article class="module module--violet module--pending" id="mod-nosql">
+        <header class="module__head">
+          <p class="module__kicker">Módulo NoSQL</p>
+          <h3 class="module__title">Bases de datos no relacionales</h3>
+          <p class="module__desc">
+            Este espacio está reservado para los ejercicios y trabajos de NoSQL del curso.
+            Aquí se publicarán el modelado de documentos, las consultas y sus evidencias.
+          </p>
+        </header>
+        <ol class="timeline">
+          <li class="node node--pending">
+            <span class="node__dot" aria-hidden="true"></span>
+            <div class="node__body">
+              <p class="node__step">Pendiente de publicación</p>
+              <h4>Primer trabajo NoSQL</h4>
+              <p>Se agregará cuando el trabajo esté entregado.</p>
+            </div>
+          </li>
+        </ol>
+      </article>
+
+      <!-- ---------- MÓDULO PROYECTO FINAL ---------- -->
+      <article class="module module--rose module--pending" id="mod-proyecto">
+        <header class="module__head">
+          <p class="module__kicker">Proyecto final</p>
+          <h3 class="module__title">SIRAV: Sistema Integral de Reservas y Alquiler de Vehículos</h3>
+          <p class="module__desc">
+            Proyecto final del curso, en desarrollo con metodología Scrum. Aquí se irán publicando la
+            propuesta, el modelo de datos, los avances por sprint y la entrega final.
+          </p>
+          <div class="module__actions">
+            <a class="btn btn--ghost" href="https://github.com/DavidBejarano309/SIRAV" target="_blank" rel="noopener">Ver repositorio en GitHub</a>
+          </div>
+        </header>
+        <ol class="timeline">
+          <li class="node node--pending">
+            <span class="node__dot" aria-hidden="true"></span>
+            <div class="node__body">
+              <p class="node__step">Entrega 1</p>
+              <h4>Propuesta y modelo de datos</h4>
+              <p>Pendiente de publicación.</p>
+            </div>
+          </li>
+          <li class="node node--pending">
+            <span class="node__dot" aria-hidden="true"></span>
+            <div class="node__body">
+              <p class="node__step">Entrega 2</p>
+              <h4>Implementación y avances</h4>
+              <p>Pendiente de publicación.</p>
+            </div>
+          </li>
+          <li class="node node--pending">
+            <span class="node__dot" aria-hidden="true"></span>
+            <div class="node__body">
+              <p class="node__step">Entrega final</p>
+              <h4>Sustentación y documentación</h4>
+              <p>Pendiente de publicación.</p>
+            </div>
+          </li>
+        </ol>
+      </article>
     </section>
 
     <!-- ===== PRESENTACION ===== -->
