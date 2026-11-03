@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SIRAV, proyecto final | David Felipe Bejarano Montes</title>
+<meta name="description" content="SIRAV, Sistema Integral de Reservas y Alquiler de Vehículos: proyecto final de Bases de Datos 2 con PostgreSQL, MongoDB y Spring Boot." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b0e14'/%3E%3Ctext x='32' y='42' font-family='monospace' font-size='28' font-weight='700' fill='%234fd1c5' text-anchor='middle'%3E%26gt;_%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="investigacion.css" />
+</head>
+<body class="inv-body">
+  <header class="inv-top no-print">
+    <div class="inv-top__inner">
+      <a href="index.html#mod-proyecto">&larr; Volver al portafolio</a>
+      <span class="inv-top__actions">
+        <a href="evidencias/proyecto/SIRAV_Propuesta.pdf" target="_blank" rel="noopener">Propuesta (PDF)</a>
+        <a href="evidencias/proyecto/sirav-resumen.pdf" target="_blank" rel="noopener">Descargar PDF</a>
+      </span>
+    </div>
+  </header>
+
+  <div class="inv-layout">
+    <aside class="toc-side" aria-label="Índice">
+      <p>-- contenido</p>
+      <ol id="tocList"></ol>
+    </aside>
+    <main class="doc">
+
+<header class="cover" id="portada">
+  <p class="cover__inst">Universidad El Bosque · Ingeniería de Sistemas</p>
+  <p class="cover__course">Bases de Datos 2 · Docente: Christian Felipe Duarte</p>
+  <h1 class="cover__title">SIRAV</h1>
+  <p class="cover__subtitle">Sistema Integral de Reservas y Alquiler de Vehículos: plataforma web con PostgreSQL, MongoDB y despliegue en una máquina virtual Linux</p>
+  <dl class="cover__meta">
+    <div><dt>Integrantes</dt><dd>David Felipe Bejarano Montes · José David Rodríguez</dd></div>
+    <div><dt>Proyecto</dt><dd>Proyecto final · en desarrollo</dd></div>
+    <div><dt>Actualizado</dt><dd>3 de noviembre de 2026</dd></div>
+  </dl>
+</header>
+
+<nav class="toc-inline" id="tocInline" aria-label="Contenido"></nav>
+
+<section id="resumen">
+  <h2>Resumen</h2>
+  <p>
+    SIRAV es el proyecto final de Bases de Datos 2: una aplicación web para una empresa pequeña de alquiler de vehículos. Con ella se
+    consultan vehículos, se hacen reservas, se registran entregas y devoluciones y se guarda el historial de cada alquiler. Lo más
+    importante es que el sistema no permite, por diseño, que un mismo vehículo quede asignado a dos períodos que se superponen, y esa
+    regla la hace cumplir la base de datos y no solo la interfaz.
+  </p>
+  <p>
+    La solución usa dos bases de datos con funciones distintas. PostgreSQL guarda los datos transaccionales y la lógica de negocio
+    (procedimientos, funciones, triggers, excepciones y transacciones). MongoDB guarda las inspecciones de los vehículos y la bitácora de
+    eventos. La aplicación se hace con Spring Boot y todo corre sobre Ubuntu Server en una máquina virtual.
+  </p>
+  <div class="callout callout--warn">
+    <p class="callout__title">Estado del proyecto</p>
+    <p>
+      SIRAV está en desarrollo. Esta página reúne lo que ya está definido en la propuesta (versión 1.0, del 17 de octubre de 2026) y el
+      avance que muestra Jira al 3 de noviembre de 2026. El modelo de datos, los scripts de la base, la aplicación y el informe final se
+      irán publicando aquí a medida que estén terminados.
+    </p>
+  </div>
+  <table class="tbl">
+    <thead><tr><th>Ficha</th><th></th></tr></thead>
+    <tbody>
+      <tr><td>Tipo de proyecto</td><td>Aplicación web académica, prototipo funcional con datos de prueba</td></tr>
+      <tr><td>Equipo</td><td>David Felipe Bejarano Montes y José David Rodríguez</td></tr>
+      <tr><td>Aplicación</td><td>Java, Spring Boot, Spring Security, Thymeleaf y Bootstrap</td></tr>
+      <tr><td>Base relacional</td><td>PostgreSQL (PL/pgSQL)</td></tr>
+      <tr><td>Base documental</td><td>MongoDB</td></tr>
+      <tr><td>Plataforma</td><td>Ubuntu Server en máquina virtual</td></tr>
+      <tr><td>Gestión</td><td>Metodología híbrida, cuatro sprints semanales en Jira y repositorio en GitHub</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="problema">
+  <h2>1. Problema, justificación y objetivos</h2>
+  <h3>1.1 Problema</h3>
+  <p>
+    Cuando las reservas se llevan en hojas de cálculo, mensajes y registros manuales aparecen las asignaciones duplicadas, la confusión sobre
+    el estado de cada carro, los errores al liquidar el alquiler y la dificultad para consultar el historial de un vehículo. Sin una fuente
+    única de información, además, se demora la atención al cliente y la elaboración de reportes.
+  </p>
+  <h3>1.2 Por qué es un buen caso para Bases de Datos 2</h3>
+  <p>
+    Evitar reservas que se cruzan es un ejemplo claro de integridad y concurrencia: pide restricciones declarativas, transacciones, manejo
+    de excepciones y pruebas con accesos simultáneos. Además, la información del negocio es de dos tipos. Los datos estructurados y
+    transaccionales encajan en PostgreSQL. Los registros de estructura variable, como una inspección con cero o muchos daños, encajan mejor
+    en MongoDB. Eso justifica usar las dos bases de forma complementaria.
+  </p>
+  <h3>1.3 Objetivos</h3>
+  <p>
+    <strong>Objetivo general.</strong> Centralizar la información de clientes, vehículos y alquileres en una aplicación web que controle la
+    disponibilidad, registre los movimientos de forma confiable y conserve un historial consultable, combinando PostgreSQL y MongoDB sobre un
+    entorno Linux virtualizado y con una gestión formal del proyecto.
+  </p>
+  <p><strong>Objetivos específicos:</strong></p>
+  <ul>
+    <li>Modelado: modelo E-R (Chen), E-R extendido, modelo relacional en Crow's Foot y diccionario de datos, normalizados hasta 3FN.</li>
+    <li>Lógica en la base de datos: procedimientos, funciones, triggers, excepciones y transacciones en PL/pgSQL.</li>
+    <li>Base documental: CRUD, consultas complejas y agregaciones en MongoDB, con justificación de qué datos van allí.</li>
+    <li>Integración y despliegue: aplicación Spring Boot conectada a ambas bases y desplegada en una VM Ubuntu Server documentada.</li>
+    <li>Gestión: cronograma, requerimientos, riesgos, metodología y control de versiones en GitHub.</li>
+  </ul>
+</section>
+
+<section id="alcance">
+  <h2>2. Alcance, supuestos y límites</h2>
+  <table class="tbl">
+    <thead><tr><th>Tipo</th><th>Supuesto</th></tr></thead>
+    <tbody>
+      <tr><td>Negocio</td><td>Una sola sede y una flota de prueba de 20 a 30 vehículos en 4 o 5 categorías. Cada reserva es de un cliente y un vehículo.</td></tr>
+      <tr><td>Negocio</td><td>Tarifas, pagos y cargos son valores de demostración en pesos colombianos, sin pasarela de pago.</td></tr>
+      <tr><td>Negocio</td><td>Las fotos de inspección se referencian por nombre de archivo, no se guardan en la base. Hay tres perfiles de usuario: administrador, operador y cliente.</td></tr>
+      <tr><td>Técnico</td><td>PostgreSQL es la fuente única de verdad para reservas, alquileres y pagos. MongoDB guarda inspecciones y bitácora, enlazadas por el identificador del alquiler.</td></tr>
+      <tr><td>Técnico</td><td>La aplicación y las dos bases corren en una VM Ubuntu Server (recomendado: 6 GB de RAM, 2 núcleos y 40 GB de disco). Todo el software es gratuito o de código abierto.</td></tr>
+      <tr><td>Gestión</td><td>Dos integrantes, plazo de cuatro semanas, cuatro sprints semanales en Jira y alcance congelado con la propuesta.</td></tr>
+    </tbody>
+  </table>
+  <div class="callout callout--note">
+    <p class="callout__title">Lo que queda fuera</p>
+    <p>
+      Para llegar al plazo se excluyen los pagos bancarios reales, la geolocalización en tiempo real, la firma electrónica con validez jurídica,
+      la verificación externa de licencias, los seguros comerciales, una API REST con interfaz independiente y la replicación o fragmentación de
+      MongoDB. Quedan como ampliaciones futuras.
+    </p>
+  </div>
+</section>
+
+<section id="arquitectura">
+  <h2>3. Arquitectura</h2>
+  <p>
+    La aplicación presenta el catálogo y los formularios con Thymeleaf y Bootstrap. Desde Spring Boot se llaman los procedimientos de
+    PostgreSQL y se consulta MongoDB, y todo se ejecuta en un servidor Ubuntu virtualizado al que se entra desde el navegador del equipo anfitrión.
+  </p>
+  <figure class="diagram">
+    <svg viewBox="0 0 760 330" role="img" aria-labelledby="fa1t fa1d">
+      <title id="fa1t">Arquitectura de SIRAV</title>
+      <desc id="fa1d">Una capa de presentación se comunica con la aplicación Spring Boot, que usa PostgreSQL para los datos transaccionales y MongoDB para inspecciones y bitácora. Todo corre dentro de una máquina virtual Ubuntu Server.</desc>
+      <defs>
+        <marker id="arr-c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="d-head-c"/></marker>
+      </defs>
+      <rect class="d-box" x="20" y="14" width="720" height="302" rx="12"/>
+      <text class="d-note" x="40" y="38">Ubuntu Server en máquina virtual</text>
+      <rect class="d-box" x="50" y="52" width="660" height="46" rx="8"/>
+      <text class="d-title" x="380" y="80" text-anchor="middle">Presentación: Thymeleaf + Bootstrap</text>
+      <rect class="d-box d-box--a" x="50" y="124" width="660" height="56" rx="8"/>
+      <text class="d-title" x="380" y="148" text-anchor="middle">Aplicación: Spring Boot + Spring Security</text>
+      <text class="d-text" x="380" y="168" text-anchor="middle">autenticación, validación e invocación de los procedimientos</text>
+      <rect class="d-box d-box--b" x="50" y="216" width="320" height="82" rx="8"/>
+      <text class="d-title" x="210" y="242" text-anchor="middle">PostgreSQL · PL/pgSQL</text>
+      <text class="d-text" x="210" y="264" text-anchor="middle">reservas, alquileres, pagos,</text>
+      <text class="d-text" x="210" y="283" text-anchor="middle">auditoría y lógica de negocio</text>
+      <rect class="d-box d-box--b" x="390" y="216" width="320" height="82" rx="8"/>
+      <text class="d-title" x="550" y="242" text-anchor="middle">MongoDB</text>
+      <text class="d-text" x="550" y="264" text-anchor="middle">inspecciones y bitácora</text>
+      <text class="d-text" x="550" y="283" text-anchor="middle">vinculadas por id_alquiler</text>
+      <path class="d-arrow" d="M380 98 V124"/>
+      <path class="d-arrow" d="M210 180 V216"/>
+      <path class="d-arrow" d="M550 180 V216"/>
+    </svg>
+    <figcaption>Figura 1 · Capas de SIRAV. Elaboración propia a partir de la propuesta del proyecto.</figcaption>
+  </figure>
+  <table class="tbl">
+    <thead><tr><th>Capa</th><th>Tecnología</th><th>Responsabilidad</th></tr></thead>
+    <tbody>
+      <tr><td>Presentación</td><td>Thymeleaf y Bootstrap</td><td>Interfaz web para clientes y personal</td></tr>
+      <tr><td>Aplicación</td><td>Java, Spring Boot, Spring Security</td><td>Autenticación, validación de entradas, invocación de procedimientos (<code>SimpleJdbcCall</code> o <code>JdbcTemplate</code>) y acceso a MongoDB con Spring Data</td></tr>
+      <tr><td>Datos relacionales</td><td>PostgreSQL, PL/pgSQL</td><td>Reservas, disponibilidad, alquileres, tarifas, pagos de prueba, auditoría y lógica de negocio</td></tr>
+      <tr><td>Datos documentales</td><td>MongoDB</td><td>Inspecciones, observaciones, evidencias referenciadas y bitácora de eventos</td></tr>
+      <tr><td>Infraestructura</td><td>Ubuntu Server en VM</td><td>Aloja la aplicación y las dos bases de datos</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="funcional">
+  <h2>4. Funcionamiento y reglas de negocio</h2>
+  <h3>4.1 Módulos</h3>
+  <table class="tbl">
+    <thead><tr><th>Módulo</th><th>Funcionalidad</th></tr></thead>
+    <tbody>
+      <tr><td>Usuarios y perfiles</td><td>Inicio de sesión y diferenciación entre administrador, operador y cliente</td></tr>
+      <tr><td>Catálogo de vehículos</td><td>Consulta por categoría, características, tarifa diaria, estado y fechas libres</td></tr>
+      <tr><td>Reservas</td><td>Selección de fechas, validación de disponibilidad y confirmación o cancelación</td></tr>
+      <tr><td>Alquileres</td><td>Entrega, fechas efectivas, inspección y condiciones de devolución</td></tr>
+      <tr><td>Mantenimiento</td><td>Períodos en los que un vehículo no se puede reservar</td></tr>
+      <tr><td>Cobros simulados</td><td>Estimación del costo, pagos de prueba y cargos por retraso</td></tr>
+      <tr><td>Historial y reportes</td><td>Alquileres, ocupación, incidencias y reportes SQL y de MongoDB</td></tr>
+    </tbody>
+  </table>
+
+  <h3>4.2 Ciclo de una reserva</h3>
+  <p>
+    Una reserva avanza por estados en un orden fijo. Cada cambio lo hace un procedimiento almacenado, y la aplicación solo lo invoca.
+  </p>
+  <figure class="diagram">
+    <svg viewBox="0 0 760 230" role="img" aria-labelledby="fe1t fe1d">
+      <title id="fe1t">Estados de una reserva</title>
+      <desc id="fe1d">La reserva pasa de solicitada a confirmada, activa y cerrada. Desde solicitada o confirmada puede pasar a cancelada.</desc>
+      <defs>
+        <marker id="arr-c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="d-head-c"/></marker>
+        <marker id="arr-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="d-head-a"/></marker>
+      </defs>
+      <rect class="d-box" x="20" y="50" width="140" height="50" rx="8"/>
+      <text class="d-title" x="90" y="81" text-anchor="middle">SOLICITADA</text>
+      <rect class="d-box d-box--a" x="215" y="50" width="140" height="50" rx="8"/>
+      <text class="d-title" x="285" y="81" text-anchor="middle">CONFIRMADA</text>
+      <rect class="d-box d-box--a" x="410" y="50" width="140" height="50" rx="8"/>
+      <text class="d-title" x="480" y="81" text-anchor="middle">ACTIVA</text>
+      <rect class="d-box d-box--b" x="605" y="50" width="140" height="50" rx="8"/>
+      <text class="d-title" x="675" y="81" text-anchor="middle">CERRADA</text>
+      <rect class="d-box" x="215" y="160" width="140" height="50" rx="8"/>
+      <text class="d-title" x="285" y="191" text-anchor="middle">CANCELADA</text>
+      <path class="d-arrow" d="M160 75 H215"/>
+      <path class="d-arrow" d="M355 75 H410"/>
+      <path class="d-arrow" d="M550 75 H605"/>
+      <path class="d-arrow d-arrow--back" d="M285 100 V160"/>
+      <path class="d-arrow d-arrow--back" d="M90 100 V185 H215"/>
+      <text class="d-note" x="187" y="40" text-anchor="middle">sp_confirmar_reserva</text>
+      <text class="d-note" x="382" y="40" text-anchor="middle">sp_iniciar_alquiler</text>
+      <text class="d-note" x="577" y="40" text-anchor="middle">sp_cerrar_alquiler</text>
+      <text class="d-note" x="150" y="206" text-anchor="middle">sp_cancelar_reserva</text>
+    </svg>
+    <figcaption>Figura 2 · Estados de una reserva y el procedimiento que produce cada cambio (regla RN-03). Elaboración propia.</figcaption>
+  </figure>
+  <table class="tbl">
+    <thead><tr><th>Paso</th><th>Etapa</th><th>Qué ocurre</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Consulta</td><td>El cliente elige categoría o vehículo y revisa fechas libres con <code>fn_vehiculo_disponible</code></td></tr>
+      <tr><td>2</td><td>Reserva</td><td><code>sp_crear_reserva</code> verifica conflictos y crea la reserva en estado SOLICITADA</td></tr>
+      <tr><td>3</td><td>Confirmación</td><td>Un operador la valida con <code>sp_confirmar_reserva</code> y pasa a CONFIRMADA</td></tr>
+      <tr><td>4</td><td>Entrega</td><td><code>sp_iniciar_alquiler</code> crea el alquiler (estado ACTIVA) y la inspección inicial se guarda en MongoDB</td></tr>
+      <tr><td>5</td><td>Devolución</td><td>Se registra el retorno y la inspección final; <code>sp_cerrar_alquiler</code> calcula cargos y genera el pago de prueba</td></tr>
+      <tr><td>6</td><td>Cierre</td><td>La reserva queda CERRADA, el vehículo vuelve a DISPONIBLE y el historial queda consultable</td></tr>
+    </tbody>
+  </table>
+
+  <h3>4.3 Reglas de negocio</h3>
+  <p>
+    La más importante es RN-01. No depende solo de la interfaz: se implementa con una restricción de exclusión de PostgreSQL sobre un rango de
+    fechas (<code>btree_gist</code>).
+  </p>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Regla</th></tr></thead>
+    <tbody>
+      <tr><td>RN-01</td><td>Un vehículo no puede tener dos reservas en estado SOLICITADA, CONFIRMADA o ACTIVA con períodos que se solapen.</td></tr>
+      <tr><td>RN-02</td><td>Un vehículo no puede reservarse en fechas que coincidan con un mantenimiento registrado.</td></tr>
+      <tr><td>RN-03</td><td>El estado de la reserva solo avanza en orden: SOLICITADA, CONFIRMADA, ACTIVA y CERRADA. CANCELADA solo es posible desde SOLICITADA o CONFIRMADA.</td></tr>
+      <tr><td>RN-04</td><td>El costo se calcula con la tarifa diaria vigente de la categoría. Cada día de retraso en la devolución genera un cargo del 50 % de esa tarifa (valor de demostración).</td></tr>
+      <tr><td>RN-05</td><td>Un alquiler solo se cierra después de registrar la devolución y su inspección.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="datos">
+  <h2>5. Diseño de datos</h2>
+  <h3>5.1 Modelo relacional</h3>
+  <p>
+    El diseño incluye 13 entidades: Usuario, Rol, Usuario_Rol, Cliente, Categoria_Vehiculo, Vehiculo, Tarifa, Reserva, Alquiler, Pago,
+    Cargo_Adicional, Mantenimiento y Auditoria_Reserva. Se normaliza hasta 3FN: la tarifa depende de la categoría y de su vigencia, y el
+    costo y la condición de «reservado» se calculan a partir de las reservas en lugar de guardarse duplicados.
+  </p>
+  <table class="tbl">
+    <thead><tr><th>Tipo</th><th>Relación</th><th>Nota</th></tr></thead>
+    <tbody>
+      <tr><td>1:1</td><td>Reserva – Alquiler</td><td>Un alquiler nace de exactamente una reserva (<code>id_reserva</code> único en Alquiler)</td></tr>
+      <tr><td>1:1</td><td>Usuario – Cliente</td><td>Un cliente con acceso web tiene un único usuario (relación opcional)</td></tr>
+      <tr><td>1:N</td><td>Categoria – Vehiculo; Categoria – Tarifa</td><td>Cada categoría agrupa varios vehículos y tiene tarifas con vigencia</td></tr>
+      <tr><td>1:N</td><td>Cliente – Reserva; Vehiculo – Reserva; Vehiculo – Mantenimiento; Alquiler – Pago; Alquiler – Cargo_Adicional</td><td>Historial de cada cliente, vehículo y alquiler</td></tr>
+      <tr><td>N:M</td><td>Usuario – Rol</td><td>Se resuelve con la tabla Usuario_Rol</td></tr>
+    </tbody>
+  </table>
+
+  <h3>5.2 Modelo documental en MongoDB</h3>
+  <p>
+    MongoDB tiene dos colecciones: <code>inspecciones_vehiculo</code> y <code>bitacora_operaciones</code>. Una inspección incluye el
+    identificador del alquiler, el tipo (entrega o devolución), la fecha, el combustible, el kilometraje, una lista variable de daños (zona,
+    severidad, descripción) y las evidencias referenciadas. La bitácora guarda eventos de la aplicación, como inicios de sesión e intentos de reserva rechazados.
+  </p>
+  <p>
+    ¿Por qué NoSQL aquí? Las inspecciones tienen estructura variable, porque cada una puede tener cero o muchos daños y evidencias, y se consultan
+    como documento completo, algo incómodo de modelar en tablas. La bitácora es de escritura continua y sin relaciones. En cambio, el estado oficial
+    de las reservas, los pagos y la auditoría transaccional se quedan en PostgreSQL. El vínculo entre las dos bases es <code>id_alquiler</code>, que la
+    aplicación verifica, porque no existen llaves foráneas entre motores.
+  </p>
+  <p>
+    Operaciones previstas: CRUD completo de inspecciones, una consulta compleja (daños de severidad alta en un rango de fechas, con
+    <code>$elemMatch</code>) y tres agregaciones (kilometraje y combustible promedio por categoría, zonas de daño más frecuentes por mes con
+    <code>$unwind</code> y <code>$group</code>, e incidencias por vehículo).
+  </p>
+
+  <h3>5.3 Lógica de negocio en PostgreSQL</h3>
+  <table class="tbl">
+    <thead><tr><th>Objeto</th><th>Nombre</th><th>Función</th></tr></thead>
+    <tbody>
+      <tr><td>Procedimientos</td><td><code>sp_crear_reserva</code>, <code>sp_confirmar_reserva</code>, <code>sp_iniciar_alquiler</code>, <code>sp_cerrar_alquiler</code>, <code>sp_cancelar_reserva</code></td><td>Cada uno ejecuta una operación completa y controlada; la aplicación solo los invoca</td></tr>
+      <tr><td>Funciones</td><td><code>fn_vehiculo_disponible</code>, <code>fn_calcular_costo</code>, <code>fn_calcular_cargo_retraso</code></td><td>Consultan disponibilidad y calculan el valor según días, tarifa y retraso</td></tr>
+      <tr><td>Triggers</td><td><code>trg_validar_transicion_reserva</code>, <code>trg_validar_mantenimiento</code>, <code>trg_auditar_reserva</code>, <code>trg_actualizar_estado_vehiculo</code></td><td>Protegen RN-02 y RN-03, registran cambios en Auditoria_Reserva y sincronizan el estado del vehículo</td></tr>
+      <tr><td>Excepciones</td><td><code>e_reserva_solapada</code>, <code>e_vehiculo_en_mantenimiento</code>, <code>e_transicion_invalida</code></td><td>Errores propios con mensajes claros que la aplicación traduce a avisos</td></tr>
+      <tr><td>Transacciones</td><td>Dentro de cada <code>sp_</code></td><td>La operación se confirma completa (<code>COMMIT</code>) o se revierte (<code>ROLLBACK</code>) ante un conflicto o error</td></tr>
+    </tbody>
+  </table>
+
+  <h3>5.4 Seguridad e integridad</h3>
+  <ul>
+    <li><strong>Integridad:</strong> llaves primarias y foráneas, <code>UNIQUE</code> (por ejemplo la placa), <code>CHECK</code> (fecha final posterior a la inicial, tarifas positivas) y la restricción de exclusión de RN-01.</li>
+    <li><strong>Privilegios:</strong> un rol de aplicación que ejecuta los <code>sp_</code> y consulta vistas, sin <code>DELETE</code> directo sobre reservas; un rol de solo lectura para reportes y un rol administrador.</li>
+    <li><strong>Autenticación:</strong> contraseñas con hash (BCrypt), autorización por perfil en Spring Security y un usuario de MongoDB limitado a su base.</li>
+    <li><strong>Rendimiento:</strong> índices <code>ix_</code> sobre vehículo y fechas de reserva y sobre las consultas frecuentes de reportes.</li>
+  </ul>
+
+  <h3>5.5 Reportes SQL previstos</h3>
+  <table class="tbl">
+    <thead><tr><th>Reporte</th><th>Técnica SQL</th></tr></thead>
+    <tbody>
+      <tr><td>R1. Ocupación de cada vehículo por mes (días alquilados frente a días del mes)</td><td><code>JOIN</code>, <code>GROUP BY</code>, <code>generate_series</code></td></tr>
+      <tr><td>R2. Ingresos simulados por categoría y por mes</td><td>Agregaciones y vista</td></tr>
+      <tr><td>R3. Los cinco vehículos más alquilados de cada categoría</td><td><code>RANK() OVER</code></td></tr>
+      <tr><td>R4. Clientes con más reservas y su tasa de cancelación</td><td>Subconsultas y <code>CASE</code></td></tr>
+      <tr><td>R5. Devoluciones tardías y cargos adicionales</td><td><code>JOIN</code> y <code>HAVING</code></td></tr>
+      <tr><td>R6. Vehículos disponibles en un rango de fechas</td><td><code>NOT EXISTS</code> / <code>fn_vehiculo_disponible</code></td></tr>
+    </tbody>
+  </table>
+
+  <h3>5.6 Virtualización y selección tecnológica</h3>
+  <p>
+    Se compara Ubuntu Server LTS, Debian y Rocky Linux (soporte, documentación, paquetes de PostgreSQL y MongoDB y consumo de recursos) y, para
+    el motor relacional, PostgreSQL frente a MySQL y MariaDB (restricciones de exclusión, tipos de rango, PL/pgSQL y control transaccional). La
+    hipótesis de trabajo es Ubuntu Server LTS con PostgreSQL, que se confirma con una matriz de criterios ponderados. En la VM, PostgreSQL, MongoDB y
+    la aplicación corren como servicios de <code>systemd</code>, y se documentan los puertos, el arranque y las copias de respaldo con
+    <code>pg_dump</code> y <code>mongodump</code>.
+  </p>
+</section>
+
+<section id="requerimientos">
+  <h2>6. Requerimientos</h2>
+  <p>La prioridad es Alta (indispensable), Media (importante) o Baja (deseable). La última columna dice qué objeto implementa cada requerimiento.</p>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Requerimiento</th><th>Prioridad</th><th>Trazabilidad</th></tr></thead>
+    <tbody>
+      <tr><td>RF-01</td><td>Autenticación y perfiles (administrador, operador, cliente)</td><td>Alta</td><td>Usuario, Rol; Spring Security</td></tr>
+      <tr><td>RF-02</td><td>Consultar el catálogo por categoría y fechas libres</td><td>Alta</td><td><code>fn_vehiculo_disponible</code>; R6</td></tr>
+      <tr><td>RF-03</td><td>Crear y cancelar reservas sin solapamientos</td><td>Alta</td><td><code>sp_crear_reserva</code>; exclusión RN-01</td></tr>
+      <tr><td>RF-04</td><td>Confirmar reservas e iniciar alquileres</td><td>Alta</td><td><code>sp_confirmar_reserva</code>; <code>sp_iniciar_alquiler</code></td></tr>
+      <tr><td>RF-05</td><td>Registrar devolución, cargos y pago de prueba</td><td>Alta</td><td><code>sp_cerrar_alquiler</code>; <code>fn_calcular_costo</code></td></tr>
+      <tr><td>RF-06</td><td>Registrar inspecciones de entrega y devolución</td><td>Alta</td><td>MongoDB: <code>inspecciones_vehiculo</code></td></tr>
+      <tr><td>RF-07</td><td>Consultar historial y reportes</td><td>Media</td><td>R1 a R6; agregaciones de MongoDB</td></tr>
+      <tr><td>RF-08</td><td>Registrar mantenimientos de vehículos</td><td>Media</td><td>Mantenimiento; <code>trg_validar_mantenimiento</code></td></tr>
+      <tr><td>RNF-01</td><td>Sin dobles asignaciones, aun con accesos simultáneos</td><td>Alta</td><td>Restricción de exclusión; prueba de concurrencia</td></tr>
+      <tr><td>RNF-02</td><td>Seguridad: contraseñas con hash y privilegios mínimos</td><td>Alta</td><td>Roles de PostgreSQL; BCrypt</td></tr>
+      <tr><td>RNF-03</td><td>Despliegue reproducible y documentado en VM Linux</td><td>Alta</td><td>Guía de instalación y scripts</td></tr>
+      <tr><td>RNF-04</td><td>Consultas frecuentes en menos de 2 segundos con los datos de prueba</td><td>Media</td><td>Índices <code>ix_</code></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="gestion">
+  <h2>7. Gestión del proyecto</h2>
+  <h3>7.1 Metodología</h3>
+  <p>
+    Usamos una metodología híbrida. La Fase 1 (modelado) es secuencial, tipo cascada, porque el modelo E-R, el relacional y el diccionario
+    tienen que cerrarse antes de implementar. La Fase 2 usa Scrum ligero, con sprints de una semana y una revisión conjunta al final de cada uno. El
+    trabajo se gestiona en Jira con un tablero Scrum de cuatro sprints (SIRAV Sprint 1 a 4), cada uno con su meta. Un integrante actúa como Product
+    Owner y el otro como Scrum Master, y los roles pueden rotar. Elegimos este enfoque porque el plazo es corto, el alcance está definido y hace falta detectar bloqueos a tiempo.
+  </p>
+
+  <h3>7.2 Cronograma</h3>
+  <table class="tbl">
+    <thead><tr><th>Semana</th><th>Trabajo central</th><th>Hito</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Propuesta, supuestos, requerimientos, riesgos, Gantt y RACI; modelos E-R, Crow's Foot y relacional; diccionario de datos; análisis de SO y RDBMS; instalación de la VM</td><td>H1: modelado cerrado, gestión definida y entorno inicial listo</td></tr>
+      <tr><td>2</td><td>Scripts de creación e inserción; procedimientos, funciones, triggers, excepciones y transacciones; roles; documento de reportes SQL; modelo documental de MongoDB</td><td>H2: base relacional probada y entregables de la Fase 1 completos</td></tr>
+      <tr><td>3</td><td>MongoDB (CRUD, consultas complejas, agregaciones); catálogo, reservas y alquileres en la aplicación; conexión a ambas bases</td><td>H3: versión web integrada para pruebas</td></tr>
+      <tr><td>4</td><td>Pruebas de concurrencia y validaciones; reportes en la aplicación; informe ejecutivo; video; repositorio final</td><td>H4: prototipo verificable y entrega final</td></tr>
+    </tbody>
+  </table>
+
+  <h3>7.3 Matriz de riesgos</h3>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Riesgo</th><th>Prob.</th><th>Impacto</th><th>Mitigación</th></tr></thead>
+    <tbody>
+      <tr><td>R1</td><td>Curva de aprendizaje de restricciones de exclusión y PL/pgSQL</td><td>Media</td><td>Alto</td><td>Prototipo en la semana 1; alternativa con trigger y <code>SELECT FOR UPDATE</code></td></tr>
+      <tr><td>R2</td><td>Recursos insuficientes del equipo para la VM</td><td>Media</td><td>Alto</td><td>Perfil mínimo de 4 GB; probar la VM en la semana 1</td></tr>
+      <tr><td>R3</td><td>Retraso al integrar Spring Boot con dos bases de datos</td><td>Media</td><td>Alto</td><td>Probar ambas conexiones en la semana 2, antes de la interfaz</td></tr>
+      <tr><td>R4</td><td>Reparto desigual del trabajo o integrante no disponible</td><td>Media</td><td>Alto</td><td>Revisión semanal, puntos de historia por persona en Jira y respaldo cruzado de roles</td></tr>
+      <tr><td>R5</td><td>Crecimiento del alcance con funciones nuevas</td><td>Alta</td><td>Medio</td><td>Alcance congelado; lo adicional pasa a ampliaciones futuras</td></tr>
+      <tr><td>R6</td><td>Pérdida de código o de la máquina virtual</td><td>Baja</td><td>Alto</td><td>Repositorio en GitHub, scripts de despliegue, instantánea de la VM y copias de las bases</td></tr>
+    </tbody>
+  </table>
+
+  <h3>7.4 Control de versiones</h3>
+  <ul>
+    <li>Repositorio en GitHub con scripts SQL numerados, código de la aplicación, documentación y guía de la VM.</li>
+    <li>Ramas <code>main</code> (estable), <code>develop</code> (integración) y <code>feature/</code> por tarea, con pull requests revisados por el otro integrante.</li>
+    <li>Commits con prefijo (<code>feat</code>, <code>fix</code>, <code>docs</code>, <code>db</code>) y referencia a la tarea de Jira.</li>
+  </ul>
+  <p>
+    El repositorio está en <a href="https://github.com/DavidBejarano309/SIRAV" target="_blank" rel="noopener">github.com/DavidBejarano309/SIRAV</a>.
+  </p>
+</section>
+
+<section id="estado">
+  <h2>8. Estado actual</h2>
+  <p>
+    Esta tabla resume el tablero de Jira al 3 de noviembre de 2026: 31 historias de usuario repartidas en siete épicas. Se actualiza cuando se
+    publica una nueva versión del portafolio.
+  </p>
+  <table class="tbl">
+    <thead><tr><th>Épica</th><th>Terminadas</th><th>En curso</th><th>Por hacer</th></tr></thead>
+    <tbody>
+      <tr><td>Gestión y documentación</td><td>3</td><td>0</td><td>2</td></tr>
+      <tr><td>Modelado y diseño de datos</td><td>0</td><td>2</td><td>1</td></tr>
+      <tr><td>Infraestructura Linux y VM</td><td>1</td><td>2</td><td>0</td></tr>
+      <tr><td>PostgreSQL: lógica de negocio</td><td>0</td><td>0</td><td>9</td></tr>
+      <tr><td>MongoDB</td><td>0</td><td>2</td><td>1</td></tr>
+      <tr><td>Aplicación web e integración</td><td>0</td><td>0</td><td>5</td></tr>
+      <tr><td>Calidad y pruebas</td><td>0</td><td>0</td><td>2</td></tr>
+      <tr><td><strong>Total</strong></td><td><strong>4</strong></td><td><strong>6</strong></td><td><strong>21</strong></td></tr>
+    </tbody>
+  </table>
+  <table class="tbl">
+    <thead><tr><th>Entregable</th><th>Estado</th></tr></thead>
+    <tbody>
+      <tr><td>Propuesta del proyecto (v1.0)</td><td>Publicada: <a href="evidencias/proyecto/SIRAV_Propuesta.pdf" target="_blank" rel="noopener">PDF</a> · <a href="evidencias/proyecto/SIRAV_Propuesta.docx" download>Word</a></td></tr>
+      <tr><td>Supuestos, requerimientos, riesgos, Gantt y RACI</td><td>Terminado en Jira; supuestos, requerimientos, riesgos y cronograma están en la propuesta</td></tr>
+      <tr><td>Jira, tablero Scrum y repositorio con ramas</td><td>Terminado</td></tr>
+      <tr><td>Análisis de selección de SO y RDBMS</td><td>Terminado en Jira; documento por publicar</td></tr>
+      <tr><td>Modelos E-R, relacional y diccionario de datos</td><td>En elaboración</td></tr>
+      <tr><td>Instalación de la VM y guía de despliegue</td><td>En curso</td></tr>
+      <tr><td>Modelo documental y CRUD en MongoDB</td><td>En curso</td></tr>
+      <tr><td>Scripts de PostgreSQL, reportes SQL y seguridad</td><td>Por hacer; en el repositorio hay solo los archivos base</td></tr>
+      <tr><td>Aplicación web y pruebas</td><td>Por hacer</td></tr>
+      <tr><td>Informe ejecutivo y video demostrativo</td><td>Por hacer</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="fuentes">
+  <h2>Fuentes</h2>
+  <p>
+    El contenido de las secciones 1 a 7 sale de la propuesta del proyecto (versión 1.0, 17 de octubre de 2026) y del documento de supuestos del repositorio.
+    La sección 8 sale del tablero de Jira del proyecto SIRAV. Los diagramas son de elaboración propia.
+  </p>
+  <p>Referencias bibliográficas de la propuesta:</p>
+  <ol class="refs">
+    <li id="ref-1">Bradshaw, S., Brazil, E., &amp; Chodorow, K. (2019). <em>MongoDB: The definitive guide</em> (3.ª ed.). O'Reilly Media.</li>
+    <li id="ref-2">Elmasri, R., &amp; Navathe, S. B. (2016). <em>Fundamentals of database systems</em> (7.ª ed.). Pearson.</li>
+    <li id="ref-3">Sadalage, P. J., &amp; Fowler, M. (2012). <em>NoSQL distilled: A brief guide to the emerging world of polyglot persistence</em>. Addison-Wesley.</li>
+    <li id="ref-4">Schwaber, K., &amp; Sutherland, J. (2020). <em>La Guía de Scrum</em>. <a href="https://scrumguides.org">scrumguides.org</a></li>
+    <li id="ref-5">Silberschatz, A., Korth, H. F., &amp; Sudarshan, S. (2019). <em>Database system concepts</em> (7.ª ed.). McGraw-Hill.</li>
+  </ol>
+</section>
+
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p>&copy; 2026 David Felipe Bejarano Montes · Ingeniería de Sistemas, Universidad El Bosque</p>
+  </footer>
+  <script src="investigacion.js"></script>
+</body>
+</html>
