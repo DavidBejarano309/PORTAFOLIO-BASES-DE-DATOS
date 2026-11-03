@@ -5,7 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>David Felipe Bejarano Montes | E-Portafolio Bases de Datos 2</title>
 <meta name="description" content="E-portafolio de David Felipe Bejarano Montes — Ingeniería de Sistemas, Universidad El Bosque. Evidencias del curso Bases de Datos 2." />
-<link rel="icon" href="data:,">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b0e14'/%3E%3Ctext x='32' y='42' font-family='monospace' font-size='28' font-weight='700' fill='%234fd1c5' text-anchor='middle'%3E%26gt;_%3C/text%3E%3C/svg%3E">
+<meta property="og:title" content="David Felipe Bejarano Montes | E-Portafolio Bases de Datos 2">
+<meta property="og:description" content="Talleres de SQL y PL/SQL, NoSQL y proyecto final del curso Bases de Datos 2, Universidad El Bosque.">
+<meta name="theme-color" content="#0b0e14">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -24,9 +27,8 @@
       </button>
       <nav class="nav__links" id="navLinks">
         <a href="#inicio">inicio</a>
-        <a href="#sobre-mi">sobre_mi</a>
+        <a href="#presentacion">sobre_mi</a>
         <a href="#evidencias">evidencias</a>
-        <a href="#presentacion">presentación</a>
         <a href="#habilidades">habilidades</a>
         <a href="#contacto">contacto</a>
       </nav>
@@ -47,8 +49,8 @@
             evidencias y proyectos del semestre.
           </p>
           <div class="hero__actions">
-            <a href="#presentacion" class="btn btn--primary">Ver mi presentación</a>
-            <a href="#evidencias" class="btn btn--ghost">Ver mis evidencias</a>
+            <a href="#evidencias" class="btn btn--primary">Ver mis evidencias</a>
+            <a href="#presentacion" class="btn btn--ghost">Conocerme</a>
           </div>
         </div>
 
@@ -81,20 +83,42 @@
       </div>
     </section>
 
-    <!-- ===== SOBRE MI ===== -->
-    <section class="section" id="sobre-mi">
-      <p class="eyebrow">-- tabla: sobre_mi</p>
-      <h2 class="section__title">Sobre mí</h2>
-      <div class="about__grid">
+    <!-- ===== PRESENTACION ===== -->
+    <section class="section section--split" id="presentacion">
+      <div class="presentacion__photo">
+        <img src="profile.webp" alt="Foto de David Felipe Bejarano Montes" width="300" height="300" loading="lazy" />
+      </div>
+      <div class="presentacion__copy">
+        <p class="eyebrow">-- tabla: sobre_mi</p>
+        <h2 class="section__title">Sobre mí</h2>
+        <p class="presentacion__name">David Felipe Bejarano Montes</p>
+        <p class="dim">Me gusta que me llamen: David</p>
         <p class="about__text">
-          Me apasiona el mundo de los datos: mi meta es especializarme como
-          <strong>Ingeniero de Datos</strong>, por eso el curso de Bases de Datos 2 es clave en mi
-          formación. Fuera de la programación, disfruto ir al gimnasio, viajar y los videojuegos.
+          Soy estudiante de Ingeniería de Sistemas en la Universidad El Bosque. Fuera de la
+          programación me gusta el gimnasio, viajar y los videojuegos. Mi meta profesional es
+          especializarme como Ingeniero de Datos, por eso todo lo relacionado con SQL, bases de
+          datos relacionales y no relacionales es fundamental en mi formación.
         </p>
         <p class="about__text">
-          A lo largo del semestre fui agregando aquí scripts SQL, PL/SQL, trabajos de NoSQL y el
-          avance del proyecto final del curso.
+          A lo largo del semestre fui publicando aquí los talleres de SQL y PL/SQL, y quedan
+          reservados los espacios para NoSQL y el proyecto final.
         </p>
+        <blockquote class="quote">
+          "Este semestre quiero demostrar que puedo dominar SQL y las bases de datos relacionales
+          y no relacionales, dando un paso firme hacia mi meta de ser Ingeniero de Datos."
+        </blockquote>
+
+        <h3 class="video__title">Video de presentación</h3>
+        <div class="video__frame">
+          <iframe
+            src="https://www.youtube.com/embed/jQqlW7JPbJc"
+            title="Video de presentación de David Felipe Bejarano Montes"
+            frameborder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen
+            loading="lazy"
+          ></iframe>
+        </div>
       </div>
     </section>
 
@@ -117,13 +141,13 @@
           <span class="card__tag card__tag--amber">PL/SQL</span>
           <h3>Programación en Oracle</h3>
           <p>Procedimientos, cursores y disparadores.</p>
-          <span class="card__status card__status--ok">1 taller publicado</span>
+          <span class="card__status card__status--ok">1 taller y 1 investigación</span>
         </a>
         <a class="card card--link" href="#mod-nosql">
           <span class="card__tag card__tag--violet">NoSQL</span>
           <h3>Bases no relacionales</h3>
           <p>Modelado de documentos y consultas.</p>
-          <span class="card__status">Próximamente</span>
+          <span class="card__status card__status--ok">2 talleres</span>
         </a>
         <a class="card card--link" href="#mod-proyecto">
           <span class="card__tag card__tag--rose">PROY</span>
@@ -251,6 +275,7 @@ WHEN MATCHED THEN
           <div class="module__actions">
             <a class="btn btn--primary" href="evidencias/plsql/taller-plsql-informe.pdf" target="_blank" rel="noopener">Abrir informe (PDF, 41 págs.)</a>
             <a class="btn btn--ghost" href="evidencias/plsql/taller-plsql.sql" download>Descargar código (.sql)</a>
+            <a class="btn btn--ghost" href="investigacion-plsql.html">Investigación PL/SQL avanzado</a>
           </div>
         </header>
 
@@ -369,26 +394,87 @@ BEGIN
               </ul>
             </div>
           </li>
+
+          <li class="node">
+            <span class="node__dot" aria-hidden="true"></span>
+            <div class="node__body">
+              <p class="node__step">Investigación</p>
+              <h4>PL/SQL avanzado en Oracle Database</h4>
+              <p>
+                Documento de investigación de 15 secciones: arquitectura del motor, paquetes, procesamiento masivo,
+                SQL dinámico y prevención de inyección, concurrencia, triggers, seguridad, diagnóstico con el
+                perfilador jerárquico y buenas prácticas, con ejemplos de código y referencias a la documentación oficial de Oracle.
+              </p>
+              <ul class="chips">
+                <li>BULK COLLECT / FORALL</li><li>DBMS_ASSERT</li><li>SKIP LOCKED</li><li>COMPOUND TRIGGER</li><li>DBMS_HPROF</li><li>utPLSQL</li>
+              </ul>
+              <div class="module__actions">
+                <a class="btn btn--primary" href="investigacion-plsql.html">Leer la investigación</a>
+                <a class="btn btn--ghost" href="evidencias/plsql/investigacion-plsql-avanzado.pdf" target="_blank" rel="noopener">Descargar PDF (37 págs.)</a>
+              </div>
+            </div>
+          </li>
         </ol>
       </article>
 
       <!-- ---------- MÓDULO NOSQL ---------- -->
-      <article class="module module--violet module--pending" id="mod-nosql">
+      <article class="module module--violet" id="mod-nosql">
         <header class="module__head">
           <p class="module__kicker">Módulo NoSQL</p>
-          <h3 class="module__title">Bases de datos no relacionales</h3>
+          <h3 class="module__title">MongoDB: consultas MQL y patrones de modelado de documentos</h3>
+          <dl class="meta">
+            <div><dt>Fecha</dt><dd>03/11/2026</dd></div>
+            <div><dt>Equipo</dt><dd>David Bejarano y José David Rodríguez</dd></div>
+            <div><dt>Entorno</dt><dd>MongoDB Atlas, VS Code, dataset sample_airbnb</dd></div>
+          </dl>
           <p class="module__desc">
-            Este espacio está reservado para los ejercicios y trabajos de NoSQL del curso.
-            Aquí se publicarán el modelado de documentos, las consultas y sus evidencias.
+            Dos trabajos sobre bases de datos orientadas a documentos: un taller de 30 ejercicios en MQL sobre el dataset de Airbnb
+            y un estudio de los doce patrones de modelado de MongoDB aplicados al proyecto SIRAV.
           </p>
+          <div class="module__actions">
+            <a class="btn btn--primary" href="taller-mql.html">Ver taller MQL</a>
+            <a class="btn btn--ghost" href="evidencias/nosql/taller-mql-airbnb.mongodb" download>Descargar script (.mongodb)</a>
+            <a class="btn btn--ghost" href="patrones-nosql.html">Ver patrones de modelado</a>
+          </div>
         </header>
         <ol class="timeline">
-          <li class="node node--pending">
+          <li class="node">
             <span class="node__dot" aria-hidden="true"></span>
             <div class="node__body">
-              <p class="node__step">Pendiente de publicación</p>
-              <h4>Primer trabajo NoSQL</h4>
-              <p>Se agregará cuando el trabajo esté entregado.</p>
+              <p class="node__step">Taller 1 · 30 ejercicios</p>
+              <h4>Consultas y modificaciones con MQL sobre sample_airbnb</h4>
+              <p>
+                Inserción de documentos (incluido un <code>_id</code> duplicado), consultas con filtros, proyecciones y
+                ordenamientos, actualizaciones con <code>$set</code>, <code>$push</code>, <code>$inc</code>, <code>$pull</code> y
+                <code>upsert</code>, y pipelines de agregación con <code>$group</code>, <code>$unwind</code>, <code>$bucket</code> y <code>$lookup</code>.
+              </p>
+              <ul class="chips">
+                <li>insertOne / insertMany</li><li>find</li><li>updateMany</li><li>$group</li><li>$unwind</li><li>$bucket</li>
+              </ul>
+              <div class="module__actions">
+                <a class="btn btn--primary" href="taller-mql.html">Leer el taller</a>
+                <a class="btn btn--ghost" href="evidencias/nosql/taller-mql-airbnb.pdf" target="_blank" rel="noopener">Descargar PDF (15 págs.)</a>
+              </div>
+            </div>
+          </li>
+
+          <li class="node">
+            <span class="node__dot" aria-hidden="true"></span>
+            <div class="node__body">
+              <p class="node__step">Taller 2 · Video</p>
+              <h4>Patrones de modelado de documentos en MongoDB</h4>
+              <p>
+                Explicación de los doce patrones (Approximation, Attribute, Bucket, Computed, Document Versioning, Extended Reference,
+                Outlier, Pre-allocation, Polymorphic, Schema Versioning, Subset y Tree), cada uno con su contexto de uso y un
+                ejemplo en JSON del proyecto SIRAV, más el guion del video.
+              </p>
+              <ul class="chips">
+                <li>Extended Reference</li><li>Subset</li><li>Bucket</li><li>Tree</li><li>Schema Versioning</li>
+              </ul>
+              <div class="module__actions">
+                <a class="btn btn--primary" href="patrones-nosql.html">Leer los patrones</a>
+                <a class="btn btn--ghost" href="evidencias/nosql/patrones-modelado-nosql.pdf" target="_blank" rel="noopener">Descargar PDF (10 págs.)</a>
+              </div>
             </div>
           </li>
         </ol>
@@ -436,58 +522,27 @@ BEGIN
       </article>
     </section>
 
-    <!-- ===== PRESENTACION ===== -->
-    <section class="section section--split" id="presentacion">
-      <div class="presentacion__photo">
-        <img src="profile.webp" alt="Foto de David Felipe Bejarano Montes" width="300" height="300" loading="lazy" />
-      </div>
-      <div class="presentacion__copy">
-        <p class="eyebrow">-- tabla: presentacion</p>
-        <h2 class="section__title">Presentación</h2>
-        <p class="presentacion__name">David Felipe Bejarano Montes</p>
-        <p class="dim">Me gusta que me llamen: David</p>
-        <p class="about__text">
-          Soy estudiante de Ingeniería de Sistemas en la Universidad El Bosque. Fuera de la
-          programación me gusta el gimnasio, viajar y los videojuegos. Mi meta profesional es
-          especializarme como Ingeniero de Datos, por eso todo lo relacionado con SQL, bases de
-          datos relacionales y no relacionales es fundamental en mi formación.
-        </p>
-        <blockquote class="quote">
-          "Este semestre quiero demostrar que puedo dominar SQL y las bases de datos relacionales
-          y no relacionales, dando un paso firme hacia mi meta de ser Ingeniero de Datos."
-        </blockquote>
-
-        <h3 class="video__title">Video de presentación</h3>
-        <div class="video__frame">
-          <iframe
-            src="https://www.youtube.com/embed/jQqlW7JPbJc"
-            title="Video de presentación de David Felipe Bejarano Montes"
-            frameborder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowfullscreen
-            loading="lazy"
-          ></iframe>
-        </div>
-      </div>
-    </section>
-
     <!-- ===== HABILIDADES ===== -->
     <section class="section" id="habilidades">
       <p class="eyebrow">-- tabla: habilidades</p>
       <h2 class="section__title">Habilidades técnicas</h2>
-      <div class="skills">
-        <span class="skill">SQL</span>
-        <span class="skill">PL/SQL</span>
-        <span class="skill">PostgreSQL</span>
-        <span class="skill">MongoDB</span>
-        <span class="skill">NoSQL</span>
-        <span class="skill">Java</span>
-        <span class="skill">Python</span>
-        <span class="skill">Spring Boot</span>
-        <span class="skill">Flask</span>
-        <span class="skill">Docker</span>
-        <span class="skill">VirtualBox</span>
-        <span class="skill">Azure / Databricks</span>
+      <div class="skillgroups">
+        <div class="skillgroup">
+          <h3>Bases de datos</h3>
+          <div class="skills"><span class="skill">SQL</span><span class="skill">PL/SQL</span><span class="skill">Oracle Database</span><span class="skill">PostgreSQL</span><span class="skill">MongoDB</span></div>
+        </div>
+        <div class="skillgroup">
+          <h3>Lenguajes</h3>
+          <div class="skills"><span class="skill">Java</span><span class="skill">Python</span></div>
+        </div>
+        <div class="skillgroup">
+          <h3>Desarrollo backend</h3>
+          <div class="skills"><span class="skill">Spring Boot</span><span class="skill">Flask</span></div>
+        </div>
+        <div class="skillgroup">
+          <h3>Infraestructura y nube</h3>
+          <div class="skills"><span class="skill">Docker</span><span class="skill">VirtualBox</span><span class="skill">Azure / Databricks</span></div>
+        </div>
       </div>
     </section>
 
@@ -496,12 +551,15 @@ BEGIN
       <p class="eyebrow">-- tabla: contacto</p>
       <h2 class="section__title">Contacto</h2>
       <p class="section__lead">¿Hablamos de datos, proyectos o ideas? Escríbeme.</p>
-      <a class="btn btn--primary" href="mailto:TU_CORREO@ejemplo.com">Enviar correo</a>
+      <div class="module__actions">
+        <a class="btn btn--primary" href="mailto:dbejaranom@unbosque.edu.co">Enviar correo</a>
+        <a class="btn btn--ghost" href="https://github.com/DavidBejarano309" target="_blank" rel="noopener">GitHub</a>
+      </div>
     </section>
   </main>
 
   <footer class="footer">
-    <p>&copy; <span id="year"></span> David Felipe Bejarano Montes — E-Portafolio Bases de Datos 2</p>
+    <p>&copy; <span id="year"></span> David Felipe Bejarano Montes · Ingeniería de Sistemas, Universidad El Bosque</p>
   </footer>
 
   <script src="script.js"></script>

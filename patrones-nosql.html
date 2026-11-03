@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Patrones de modelado NoSQL | David Felipe Bejarano Montes</title>
+<meta name="description" content="Taller de patrones de modelado de documentos en MongoDB: doce patrones con ejemplos del proyecto SIRAV y guion del video." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b0e14'/%3E%3Ctext x='32' y='42' font-family='monospace' font-size='28' font-weight='700' fill='%234fd1c5' text-anchor='middle'%3E%26gt;_%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="investigacion.css" />
+</head>
+<body class="inv-body">
+  <header class="inv-top no-print">
+    <div class="inv-top__inner">
+      <a href="index.html#mod-nosql">&larr; Volver al portafolio</a>
+      <span class="inv-top__actions">
+        <a href="evidencias/nosql/patrones-modelado-nosql.pdf" target="_blank" rel="noopener">Descargar PDF</a>
+      </span>
+    </div>
+  </header>
+
+  <div class="inv-layout">
+    <aside class="toc-side" aria-label="Índice">
+      <p>-- contenido</p>
+      <ol id="tocList"></ol>
+    </aside>
+    <main class="doc">
+
+<header class="cover" id="portada">
+  <p class="cover__inst">Universidad El Bosque · Ingeniería de Sistemas</p>
+  <p class="cover__course">Bases de Datos 2 · Docente: Christian Felipe Duarte</p>
+  <h1 class="cover__title">Patrones de modelado de documentos en MongoDB</h1>
+  <p class="cover__subtitle">Los doce patrones del resumen «Building with Patterns», con ejemplos aplicados al proyecto SIRAV</p>
+  <dl class="cover__meta">
+    <div><dt>Integrantes</dt><dd>David Felipe Bejarano Montes · José David Rodríguez</dd></div>
+    <div><dt>Entregable</dt><dd>Video de 12 a 13 minutos (YouTube, público)</dd></div>
+    <div><dt>Fecha</dt><dd>3 de noviembre de 2026</dd></div>
+  </dl>
+</header>
+
+<nav class="toc-inline" id="tocInline" aria-label="Contenido"></nav>
+
+<section id="resumen">
+  <h2>Resumen</h2>
+  <p>
+    El taller pide un video donde se explique cada patrón de modelado de documentos de MongoDB: qué es, cuándo conviene usarlo y un
+    ejemplo concreto en JSON. La referencia es el resumen «Building with Patterns: A Summary» del blog de MongoDB, que repasa doce
+    patrones. Esta página reúne el material que sirve de base para el video: la explicación de cada patrón, un ejemplo con datos de
+    SIRAV (el sistema de reservas y alquiler de vehículos del proyecto final) y el guion con los tiempos.
+  </p>
+  <p>
+    En todos los patrones la idea de fondo es la misma. En MongoDB los datos se organizan según cómo los va a usar la aplicación, y no
+    según una normalización previa. Por eso los patrones casi siempre cambian algo de duplicación o de complejidad en la aplicación por
+    menos uniones, menos escrituras o consultas más sencillas.
+  </p>
+  <div class="callout callout--warn">
+    <p class="callout__title">Estado del video</p>
+    <p>El video todavía no está publicado. Cuando esté en YouTube con visibilidad pública, aquí irá el enlace directo.</p>
+  </div>
+  <table class="tbl">
+    <thead><tr><th>#</th><th>Patrón</th><th>Para qué sirve</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Approximation (aproximación)</td><td>Reducir escrituras cuando no hace falta precisión exacta</td></tr>
+      <tr><td>2</td><td>Attribute (atributo)</td><td>Buscar sobre campos parecidos con un solo índice</td></tr>
+      <tr><td>3</td><td>Bucket (cubeta)</td><td>Agrupar datos de flujo continuo por intervalo</td></tr>
+      <tr><td>4</td><td>Computed (calculado)</td><td>Guardar resultados ya calculados</td></tr>
+      <tr><td>5</td><td>Document Versioning (versionado de documentos)</td><td>Conservar el historial de un documento</td></tr>
+      <tr><td>6</td><td>Extended Reference (referencia extendida)</td><td>Evitar uniones copiando los datos más usados</td></tr>
+      <tr><td>7</td><td>Outlier (valor atípico)</td><td>Que los casos raros no condicionen el diseño</td></tr>
+      <tr><td>8</td><td>Pre-allocation (preasignación)</td><td>Crear la estructura completa desde el inicio</td></tr>
+      <tr><td>9</td><td>Polymorphic (polimórfico)</td><td>Guardar documentos parecidos en la misma colección</td></tr>
+      <tr><td>10</td><td>Schema Versioning (versionado de esquema)</td><td>Evolucionar el esquema sin detener el sistema</td></tr>
+      <tr><td>11</td><td>Subset (subconjunto)</td><td>Dejar en el documento solo lo que se usa más</td></tr>
+      <tr><td>12</td><td>Tree (árbol)</td><td>Modelar jerarquías</td></tr>
+    </tbody>
+  </table>
+</section>
+<section id="patrones">
+  <h2>Los doce patrones</h2>
+  <p>Cada ejemplo usa el contexto de SIRAV. Son propuestas de modelado para explicar el patrón, no el esquema final del proyecto.</p>
+  <h3>1. Approximation <span class="h-es">(Aproximación)</span></h3>
+  <p><strong>Qué es.</strong> En lugar de guardar un valor exacto cada vez que cambia, se guarda un valor aproximado y se actualiza solo de vez en cuando. La lógica vive en la aplicación.</p>
+  <p><strong>Cuándo usarlo.</strong> Cuando hay cálculos o escrituras muy frecuentes y la precisión exacta no es lo más importante, por ejemplo un contador de visitas.</p>
+  <p><strong>Frente al modelo relacional.</strong> En un modelo relacional cada visita sería un UPDATE sobre la misma fila. Aquí se reduce el número de escrituras.</p>
+  <p><strong>Ventajas y desventajas.</strong> A favor: menos escrituras y números estadísticamente válidos. En contra: el número no es exacto y la implementación queda en la aplicación.</p>
+  <figure class="code">
+    <figcaption>Código P1 · Contador aproximado de vistas (mongosh)</figcaption>
+<pre><code data-mql>// Contador de vistas de un vehículo: solo se escribe 1 de cada 100 visitas
+if (Math.random() &lt; 0.01) {
+  db.vehiculos.updateOne(
+    { _id: &quot;VEH-0021&quot; },
+    { $inc: { vistas_aprox: 100 } }
+  );
+}</code></pre>
+  </figure>
+  <h3>2. Attribute <span class="h-es">(Atributo)</span></h3>
+  <p><strong>Qué es.</strong> Cuando muchos documentos comparten campos parecidos que se quieren buscar u ordenar, esos campos se pasan a un array de pares clave-valor.</p>
+  <p><strong>Cuándo usarlo.</strong> Cuando los documentos son grandes, tienen muchos campos similares y solo algunos documentos tienen cada campo.</p>
+  <p><strong>Frente al modelo relacional.</strong> En relacional se resolvería con una tabla de atributos (modelo EAV) y varios JOIN. Aquí basta un solo índice sobre el array.</p>
+  <p><strong>Ventajas y desventajas.</strong> A favor: menos índices y consultas más simples y rápidas.</p>
+  <figure class="code">
+    <figcaption>Código P2 · Especificaciones de un vehículo como pares clave-valor</figcaption>
+<pre><code data-mql>{
+  &quot;_id&quot;: &quot;VEH-0021&quot;,
+  &quot;placa&quot;: &quot;KLM123&quot;,
+  &quot;especificaciones&quot;: [
+    { &quot;k&quot;: &quot;transmision&quot;, &quot;v&quot;: &quot;automática&quot; },
+    { &quot;k&quot;: &quot;combustible&quot;, &quot;v&quot;: &quot;híbrido&quot; },
+    { &quot;k&quot;: &quot;capacidad_maletero_l&quot;, &quot;v&quot;: 420 }
+  ]
+}
+// Un único índice cubre cualquier especificación:
+db.vehiculos.createIndex({ &quot;especificaciones.k&quot;: 1, &quot;especificaciones.v&quot;: 1 })</code></pre>
+  </figure>
+  <h3>3. Bucket <span class="h-es">(Cubeta)</span></h3>
+  <p><strong>Qué es.</strong> Los datos que llegan como flujo (lecturas, eventos) se agrupan en un documento por intervalo de tiempo en lugar de un documento por dato.</p>
+  <p><strong>Cuándo usarlo.</strong> En series de tiempo, analítica en tiempo real e IoT.</p>
+  <p><strong>Frente al modelo relacional.</strong> Un documento por lectura llenaría la colección de millones de filas pequeñas. Con cubetas hay menos documentos y los índices pesan menos.</p>
+  <p><strong>Ventajas y desventajas.</strong> A favor: menos documentos, mejor rendimiento de índices y acceso simple gracias a los datos preagregados.</p>
+  <figure class="code">
+    <figcaption>Código P3 · Lecturas GPS de una hora en un solo documento</figcaption>
+<pre><code data-mql>{
+  &quot;vehiculo_id&quot;: &quot;VEH-0021&quot;,
+  &quot;inicio&quot;: ISODate(&quot;2026-11-03T08:00:00Z&quot;),
+  &quot;fin&quot;:    ISODate(&quot;2026-11-03T09:00:00Z&quot;),
+  &quot;n_lecturas&quot;: 3,
+  &quot;velocidad_prom&quot;: 41.7,
+  &quot;lecturas&quot;: [
+    { &quot;t&quot;: ISODate(&quot;2026-11-03T08:00:10Z&quot;), &quot;lat&quot;: 4.7110, &quot;lng&quot;: -74.0721, &quot;vel&quot;: 38 },
+    { &quot;t&quot;: ISODate(&quot;2026-11-03T08:20:10Z&quot;), &quot;lat&quot;: 4.7231, &quot;lng&quot;: -74.0402, &quot;vel&quot;: 45 },
+    { &quot;t&quot;: ISODate(&quot;2026-11-03T08:40:10Z&quot;), &quot;lat&quot;: 4.7502, &quot;lng&quot;: -74.0310, &quot;vel&quot;: 42 }
+  ]
+}</code></pre>
+  </figure>
+  <h3>4. Computed <span class="h-es">(Calculado)</span></h3>
+  <p><strong>Qué es.</strong> Los valores que la aplicación calcularía una y otra vez al leer se calculan una vez al escribir y se guardan en el documento.</p>
+  <p><strong>Cuándo usarlo.</strong> En accesos de lectura muy intensivos donde se repite el mismo cálculo.</p>
+  <p><strong>Frente al modelo relacional.</strong> En relacional se usaría un SUM/COUNT con GROUP BY en cada consulta. Aquí se lee el total ya listo.</p>
+  <p><strong>Ventajas y desventajas.</strong> A favor: menos carga de CPU y consultas más simples. En contra: a veces es difícil detectar la necesidad y no conviene abusar.</p>
+  <figure class="code">
+    <figcaption>Código P4 · Acumulados precalculados por vehículo</figcaption>
+<pre><code data-mql>// Al cerrar una reserva se actualizan los acumulados del vehículo
+db.vehiculos.updateOne(
+  { _id: &quot;VEH-0021&quot; },
+  { $inc: { num_reservas: 1, ingresos_totales: 280000 } }
+);</code></pre>
+  </figure>
+  <h3>5. Document Versioning <span class="h-es">(Versionado de documentos)</span></h3>
+  <p><strong>Qué es.</strong> Se guarda el documento actual en una colección y las versiones anteriores en otra, con un número de revisión.</p>
+  <p><strong>Cuándo usarlo.</strong> Cuando hay que conservar el historial de cambios de un documento.</p>
+  <p><strong>Frente al modelo relacional.</strong> En relacional se necesitarían tablas de auditoría con triggers. Aquí la versión vigente se consulta sin tocar el historial.</p>
+  <p><strong>Ventajas y desventajas.</strong> A favor: fácil de implementar, incluso en sistemas ya existentes, y sin impacto en las consultas de la última revisión. En contra: duplica las escrituras y hay que consultar la colección correcta.</p>
+  <figure class="code">
+    <figcaption>Código P5 · Tarifa vigente y su historial</figcaption>
+<pre><code data-mql>// Colección tarifas (versión vigente)
+{ &quot;_id&quot;: &quot;TAR-SUV&quot;, &quot;categoria&quot;: &quot;SUV&quot;, &quot;precio_dia&quot;: 210000, &quot;revision&quot;: 4 }
+
+// Colección tarifas_historial (versiones anteriores)
+{ &quot;tarifa_id&quot;: &quot;TAR-SUV&quot;, &quot;categoria&quot;: &quot;SUV&quot;, &quot;precio_dia&quot;: 195000, &quot;revision&quot;: 3,
+  &quot;vigente_hasta&quot;: ISODate(&quot;2026-09-30T00:00:00Z&quot;) }</code></pre>
+  </figure>
+  <h3>6. Extended Reference <span class="h-es">(Referencia extendida)</span></h3>
+  <p><strong>Qué es.</strong> Se copia, dentro del documento que referencia, solo la información de otro documento que se consulta con frecuencia, para evitar el JOIN.</p>
+  <p><strong>Cuándo usarlo.</strong> Cuando se hacen muchos JOIN para combinar datos que se piden juntos.</p>
+  <p><strong>Frente al modelo relacional.</strong> En relacional una reserva necesitaría unirse a cliente y vehículo cada vez. Aquí los datos más usados ya están dentro de la reserva.</p>
+  <p><strong>Ventajas y desventajas.</strong> A favor: lecturas más rápidas y menos uniones. En contra: se duplican datos.</p>
+  <figure class="code">
+    <figcaption>Código P6 · Reserva con datos copiados de cliente y vehículo</figcaption>
+<pre><code data-mql>{
+  &quot;_id&quot;: &quot;RES-1042&quot;,
+  &quot;estado&quot;: &quot;confirmada&quot;,
+  &quot;desde&quot;: ISODate(&quot;2026-11-10&quot;), &quot;hasta&quot;: ISODate(&quot;2026-11-13&quot;),
+  &quot;cliente&quot;:  { &quot;id&quot;: &quot;CLI-88&quot;, &quot;nombre&quot;: &quot;Laura Gómez&quot;, &quot;ciudad&quot;: &quot;Bogotá&quot; },
+  &quot;vehiculo&quot;: { &quot;id&quot;: &quot;VEH-0021&quot;, &quot;placa&quot;: &quot;KLM123&quot;, &quot;modelo&quot;: &quot;Mazda CX-30&quot; }
+}</code></pre>
+  </figure>
+  <h3>7. Outlier <span class="h-es">(Valor atípico)</span></h3>
+  <p><strong>Qué es.</strong> Los pocos documentos que se salen de lo normal se tratan aparte para que no condicionen el diseño del caso típico.</p>
+  <p><strong>Cuándo usarlo.</strong> Cuando unas pocas consultas o documentos no encajan con el resto y terminarían guiando toda la solución.</p>
+  <p><strong>Frente al modelo relacional.</strong> En relacional habría que diseñar la tabla pensando en el caso extremo. Aquí el caso normal sigue siendo simple.</p>
+  <p><strong>Ventajas y desventajas.</strong> A favor: los atípicos no dictan la solución y los casos típicos quedan a la medida. En contra: está pensado para consultas concretas y las ad hoc pueden rendir mal; buena parte se implementa en la aplicación.</p>
+  <figure class="code">
+    <figcaption>Código P7 · Marca de desbordamiento para un caso atípico</figcaption>
+<pre><code data-mql>// Vehículo normal: últimas reservas embebidas
+{ &quot;_id&quot;: &quot;VEH-0021&quot;, &quot;ultimas_reservas&quot;: [&quot;RES-1042&quot;, &quot;RES-1050&quot;], &quot;desbordado&quot;: false }
+
+// Vehículo de flota muy usado: se marca y el resto va a otra colección
+{ &quot;_id&quot;: &quot;VEH-0007&quot;, &quot;ultimas_reservas&quot;: [&quot;RES-2210&quot;, &quot;RES-2214&quot;], &quot;desbordado&quot;: true }
+// reservas_extra: { &quot;vehiculo_id&quot;: &quot;VEH-0007&quot;, &quot;reservas&quot;: [&quot;RES-0001&quot;, &quot;...&quot;] }</code></pre>
+  </figure>
+  <h3>8. Pre-allocation <span class="h-es">(Preasignación)</span></h3>
+  <p><strong>Qué es.</strong> Cuando se conoce la estructura de antemano, se crea el documento completo desde el inicio y la aplicación solo rellena los valores.</p>
+  <p><strong>Cuándo usarlo.</strong> Cuando la estructura del documento se sabe de antemano.</p>
+  <p><strong>Frente al modelo relacional.</strong> En relacional se insertarían filas a medida que se necesiten. Aquí el documento ya existe y solo se hacen actualizaciones.</p>
+  <p><strong>Ventajas y desventajas.</strong> A favor: diseño más simple cuando la estructura es conocida. En contra: hay un equilibrio entre simplicidad y rendimiento.</p>
+  <figure class="code">
+    <figcaption>Código P8 · Calendario de disponibilidad preasignado</figcaption>
+<pre><code data-mql>// Calendario mensual con los 30 días libres (&quot;L&quot;)
+{
+  &quot;vehiculo_id&quot;: &quot;VEH-0021&quot;,
+  &quot;mes&quot;: &quot;2026-11&quot;,
+  &quot;dias&quot;: { &quot;1&quot;: &quot;L&quot;, &quot;2&quot;: &quot;L&quot;, &quot;3&quot;: &quot;L&quot; /* ... hasta &quot;30&quot; */ }
+}
+// Al confirmar una reserva solo se cambia una posición:
+db.calendario.updateOne(
+  { vehiculo_id: &quot;VEH-0021&quot;, mes: &quot;2026-11&quot;, &quot;dias.10&quot;: &quot;L&quot; },
+  { $set: { &quot;dias.10&quot;: &quot;RES-1042&quot; } }
+);</code></pre>
+  </figure>
+  <h3>9. Polymorphic <span class="h-es">(Polimórfico)</span></h3>
+  <p><strong>Qué es.</strong> Documentos que son más parecidos que distintos se guardan en una misma colección aunque no tengan exactamente los mismos campos.</p>
+  <p><strong>Cuándo usarlo.</strong> Cuando hay variaciones entre documentos pero se quiere consultarlos juntos.</p>
+  <p><strong>Frente al modelo relacional.</strong> En relacional habría que usar herencia de tablas o columnas con muchos nulos. Aquí cada documento lleva solo sus campos.</p>
+  <p><strong>Ventajas y desventajas.</strong> A favor: fácil de implementar y consultas sobre una sola colección.</p>
+  <figure class="code">
+    <figcaption>Código P9 · Distintos tipos de vehículo en la colección vehiculos</figcaption>
+<pre><code data-mql>{ &quot;_id&quot;: &quot;VEH-0021&quot;, &quot;tipo&quot;: &quot;automovil&quot;, &quot;placa&quot;: &quot;KLM123&quot;, &quot;puertas&quot;: 5, &quot;transmision&quot;: &quot;automática&quot; }
+{ &quot;_id&quot;: &quot;VEH-0030&quot;, &quot;tipo&quot;: &quot;moto&quot;,      &quot;placa&quot;: &quot;ABC12D&quot;, &quot;cilindraje&quot;: 300, &quot;casco_incluido&quot;: true }
+{ &quot;_id&quot;: &quot;VEH-0044&quot;, &quot;tipo&quot;: &quot;camion&quot;,    &quot;placa&quot;: &quot;XYZ987&quot;, &quot;capacidad_kg&quot;: 3500 }</code></pre>
+  </figure>
+  <h3>10. Schema Versioning <span class="h-es">(Versionado de esquema)</span></h3>
+  <p><strong>Qué es.</strong> Cada documento lleva un campo con la versión de su esquema, y las versiones antiguas y nuevas conviven en la colección mientras se migran.</p>
+  <p><strong>Cuándo usarlo.</strong> En casi cualquier aplicación, porque el esquema cambia durante su vida.</p>
+  <p><strong>Frente al modelo relacional.</strong> En relacional un cambio de esquema suele ser un ALTER TABLE que bloquea o exige ventana de mantenimiento. Aquí no hace falta detener el sistema.</p>
+  <p><strong>Ventajas y desventajas.</strong> A favor: sin tiempo de inactividad, control de la migración y menos deuda técnica. En contra: durante la migración puede hacer falta un índice doble sobre el mismo campo.</p>
+  <figure class="code">
+    <figcaption>Código P10 · Dos versiones de cliente en la misma colección</figcaption>
+<pre><code data-mql>// Versión 1
+{ &quot;_id&quot;: &quot;CLI-88&quot;, &quot;schema_version&quot;: 1, &quot;nombre&quot;: &quot;Laura Gómez&quot;, &quot;telefono&quot;: &quot;3001234567&quot; }
+
+// Versión 2: el contacto se agrupa
+{ &quot;_id&quot;: &quot;CLI-91&quot;, &quot;schema_version&quot;: 2, &quot;nombre&quot;: &quot;Mateo Ruiz&quot;,
+  &quot;contacto&quot;: { &quot;telefono&quot;: &quot;3109876543&quot;, &quot;email&quot;: &quot;mateo@ejemplo.com&quot; } }</code></pre>
+  </figure>
+  <h3>11. Subset <span class="h-es">(Subconjunto)</span></h3>
+  <p><strong>Qué es.</strong> En el documento principal se deja solo la parte que se usa con frecuencia y el resto se mueve a otra colección.</p>
+  <p><strong>Cuándo usarlo.</strong> Cuando los documentos son grandes y tienen muchos datos poco usados, de modo que el conjunto de trabajo no cabe en memoria.</p>
+  <p><strong>Frente al modelo relacional.</strong> En relacional se traería todo con JOIN o se paginaría. Aquí la mayoría de las lecturas se resuelven con un solo documento pequeño.</p>
+  <p><strong>Ventajas y desventajas.</strong> A favor: conjunto de trabajo más pequeño y menos acceso a disco. En contra: hay que gestionar el subconjunto y pedir el resto implica otra consulta.</p>
+  <figure class="code">
+    <figcaption>Código P11 · Vehículo con sus reseñas más recientes</figcaption>
+<pre><code data-mql>{
+  &quot;_id&quot;: &quot;VEH-0021&quot;,
+  &quot;modelo&quot;: &quot;Mazda CX-30&quot;,
+  &quot;resenas_recientes&quot;: [
+    { &quot;cliente&quot;: &quot;Laura G.&quot;, &quot;puntaje&quot;: 5, &quot;texto&quot;: &quot;Muy limpio y puntual&quot; },
+    { &quot;cliente&quot;: &quot;Mateo R.&quot;, &quot;puntaje&quot;: 4, &quot;texto&quot;: &quot;Buen consumo&quot; }
+  ]
+}
+// Colección resenas: todas las demás reseñas, referenciadas por vehiculo_id</code></pre>
+  </figure>
+  <h3>12. Tree <span class="h-es">(Árbol)</span></h3>
+  <p><strong>Qué es.</strong> Los datos jerárquicos se modelan guardando en cada nodo la referencia a su padre o a sus ancestros.</p>
+  <p><strong>Cuándo usarlo.</strong> Cuando hay jerarquías que se consultan con frecuencia.</p>
+  <p><strong>Frente al modelo relacional.</strong> En relacional se usarían consultas recursivas o varios JOIN. Aquí se consulta un nodo y se obtiene su ruta.</p>
+  <p><strong>Ventajas y desventajas.</strong> A favor: mejor rendimiento al evitar varios JOIN. En contra: las actualizaciones de la jerarquía las debe gestionar la aplicación.</p>
+  <figure class="code">
+    <figcaption>Código P12 · Ubicaciones de SIRAV (país, ciudad, sede)</figcaption>
+<pre><code data-mql>{ &quot;_id&quot;: &quot;CO&quot;,          &quot;nombre&quot;: &quot;Colombia&quot;,                 &quot;padre&quot;: null }
+{ &quot;_id&quot;: &quot;BOG&quot;,         &quot;nombre&quot;: &quot;Bogotá&quot;,   &quot;padre&quot;: &quot;CO&quot;,   &quot;ancestros&quot;: [&quot;CO&quot;] }
+{ &quot;_id&quot;: &quot;BOG-CHAPI&quot;,  &quot;nombre&quot;: &quot;Sede Chapinero&quot;, &quot;padre&quot;: &quot;BOG&quot;, &quot;ancestros&quot;: [&quot;CO&quot;, &quot;BOG&quot;] }
+// Todas las sedes de Bogotá (cualquier nivel):
+db.ubicaciones.find({ ancestros: &quot;BOG&quot; })</code></pre>
+  </figure>
+</section>
+<section id="guion">
+  <h2>Guion del video</h2>
+  <p>
+    Duración objetivo: unos 12 minutos y medio, dentro del rango de 12 a 13 minutos que pide el enunciado. Cada patrón dura cerca de
+    55 segundos y los dos integrantes se alternan. Los tiempos son una guía para ensayar y hay que ajustarlos con el video grabado.
+  </p>
+  <table class="tbl">
+    <thead><tr><th>Tiempo</th><th>Segmento</th><th>Quién</th><th>Qué se muestra</th></tr></thead>
+    <tbody>
+      <tr><td>0:00</td><td>Introducción y presentación del equipo</td><td>Ambos</td><td>Portada, nombres y por qué importan los patrones en NoSQL</td></tr>
+      <tr><td>0:45</td><td>1. Approximation</td><td>David</td><td>Definición, cuándo usarlo y el JSON del código P1</td></tr>
+      <tr><td>1:40</td><td>2. Attribute</td><td>José David</td><td>Definición, cuándo usarlo y el JSON del código P2</td></tr>
+      <tr><td>2:35</td><td>3. Bucket</td><td>David</td><td>Definición, cuándo usarlo y el JSON del código P3</td></tr>
+      <tr><td>3:30</td><td>4. Computed</td><td>José David</td><td>Definición, cuándo usarlo y el JSON del código P4</td></tr>
+      <tr><td>4:25</td><td>5. Document Versioning</td><td>David</td><td>Definición, cuándo usarlo y el JSON del código P5</td></tr>
+      <tr><td>5:20</td><td>6. Extended Reference</td><td>José David</td><td>Definición, cuándo usarlo y el JSON del código P6</td></tr>
+      <tr><td>6:15</td><td>7. Outlier</td><td>David</td><td>Definición, cuándo usarlo y el JSON del código P7</td></tr>
+      <tr><td>7:10</td><td>8. Pre-allocation</td><td>José David</td><td>Definición, cuándo usarlo y el JSON del código P8</td></tr>
+      <tr><td>8:05</td><td>9. Polymorphic</td><td>David</td><td>Definición, cuándo usarlo y el JSON del código P9</td></tr>
+      <tr><td>9:00</td><td>10. Schema Versioning</td><td>José David</td><td>Definición, cuándo usarlo y el JSON del código P10</td></tr>
+      <tr><td>9:55</td><td>11. Subset</td><td>David</td><td>Definición, cuándo usarlo y el JSON del código P11</td></tr>
+      <tr><td>10:50</td><td>12. Tree</td><td>José David</td><td>Definición, cuándo usarlo y el JSON del código P12</td></tr>
+      <tr><td>11:45</td><td>Cierre y conclusiones</td><td>Ambos</td><td>Cuadro resumen de los doce patrones</td></tr>
+    </tbody>
+  </table>
+  <p>Con estos tiempos el video termina cerca de los 12:30.</p>
+  <h3>Estructura de cada patrón</h3>
+  <ol>
+    <li>Definición: qué es y cómo funciona en un documento.</li>
+    <li>Contexto de uso: cuándo y por qué usarlo, y la ventaja frente al modelo relacional.</li>
+    <li>Ejemplo práctico: el JSON de SIRAV, resaltando en pantalla el campo clave del patrón.</li>
+  </ol>
+  <h3>Recursos visuales sugeridos</h3>
+  <ul>
+    <li>Una diapositiva por patrón con el JSON del ejemplo y una flecha o recuadro que marque lo importante.</li>
+    <li>Un diagrama «antes y después» para Extended Reference, Subset y Tree.</li>
+    <li>Un corte de pantalla de MongoDB Compass o VS Code con el documento real para dos o tres patrones.</li>
+  </ul>
+</section>
+
+<section id="entrega">
+  <h2>Entregable y lista de verificación</h2>
+  <p>El enunciado pide un único PDF por grupo con el título de la tarea, la asignatura, los nombres completos de los integrantes y el enlace al video.</p>
+  <ul class="checklist">
+    <li>Duración entre 12 y 13 minutos.</li>
+    <li>Aparecen y hablan todos los integrantes del grupo del proyecto.</li>
+    <li>Se cubren los doce patrones del resumen de MongoDB.</li>
+    <li>Cada patrón tiene definición, contexto de uso y ejemplo en JSON.</li>
+    <li>El video está en YouTube con visibilidad <em>pública</em>, no privada ni restringida.</li>
+    <li>El PDF incluye título, asignatura, nombres completos y el enlace directo.</li>
+  </ul>
+  <h3>Fuentes</h3>
+  <ol class="refs">
+    <li id="ref-1">MongoDB. <em>Building with Patterns: A Summary.</em> <a href="https://www.mongodb.com/company/blog/building-with-patterns-a-summary">mongodb.com/company/blog/building-with-patterns-a-summary</a>. Es la referencia que indica el enunciado. La lista de patrones y sus ventajas y desventajas se tomaron de ese resumen, leído a través de una copia publicada en <a href="https://dev.to/kenwalger/building-with-patterns-a-summary-2he">dev.to</a>.</li>
+  </ol>
+  <p>
+    Los ejemplos JSON y las explicaciones de «frente al modelo relacional» son de elaboración propia, a partir de lo visto en clase.
+  </p>
+</section>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p>&copy; 2026 David Felipe Bejarano Montes · Ingeniería de Sistemas, Universidad El Bosque</p>
+  </footer>
+  <script src="investigacion.js"></script>
+</body>
+</html>

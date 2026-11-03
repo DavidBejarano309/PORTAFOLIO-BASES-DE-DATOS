@@ -1,0 +1,242 @@
+// =====================================================================
+// Taller MQL - MongoDB  |  Bases de Datos 2  |  Universidad El Bosque
+// Autor: David Felipe Bejarano Montes
+// Base de datos: sample_airbnb   Coleccion: listingsAndReviews
+// Para ejecutar: MongoDB for VS Code (playground) o mongosh conectado a Atlas.
+// Ejecutar los ejercicios en orden: los ejercicios 16 y 17 usan los
+// documentos insertados en los ejercicios 1 y 2.
+// =====================================================================
+
+use("sample_airbnb");
+const col = db.getCollection("listingsAndReviews");
+
+// ---------------------------------------------------------------------
+// BLOQUE 1. INSERCION
+// ---------------------------------------------------------------------
+
+// Ejercicio 1. insertOne basico
+col.insertOne({
+  name: "Cozy Cabin Retreat",
+  summary: "Cabana acogedora rodeada de bosque, ideal para desconectarse.",
+  property_type: "Cabin",
+  price: NumberDecimal("150.00")
+});
+
+// Ejercicio 2. insertOne con objeto anidado (address)
+col.insertOne({
+  name: "Casa Patagonia Lodge",
+  summary: "Casa de montana con vista al lago.",
+  property_type: "House",
+  price: NumberDecimal("120.00"),
+  address: {
+    country: "Chile",
+    market: "Santiago"
+  }
+});
+
+// Ejercicio 3. insertMany simple
+col.insertMany([
+  { name: "Studio de Arte Urbano", price: NumberDecimal("80.00") },
+  { name: "Loft Minimalista", price: NumberDecimal("110.00") }
+]);
+
+// Ejercicio 4. insertMany con arrays (amenities)
+col.insertMany([
+  {
+    name: "Apartamento Centro Historico",
+    property_type: "Apartment",
+    price: NumberDecimal("95.00"),
+    amenities: ["Wifi", "Kitchen", "Free parking"]
+  },
+  {
+    name: "Casa de Campo Los Alamos",
+    property_type: "House",
+    price: NumberDecimal("130.00"),
+    amenities: ["Wifi", "Heating", "Kitchen", "Free parking"]
+  }
+]);
+
+// Ejercicio 5. Validacion de _id duplicado
+// Se toma el _id de un documento que ya existe y se intenta reutilizar.
+const idExistente = col.findOne({}, { _id: 1 })._id;
+try {
+  col.insertOne({ _id: idExistente, name: "Listing con _id repetido", price: NumberDecimal("50.00") });
+} catch (e) {
+  print("Error esperado: " + e.message);   // E11000 duplicate key error
+}
+
+// ---------------------------------------------------------------------
+// BLOQUE 2. CONSULTAS (find)
+// ---------------------------------------------------------------------
+
+// Ejercicio 6. Listings de Brazil (name y price)
+col.find(
+  { "address.country": "Brazil" },
+  { _id: 0, name: 1, price: 1 }
+);
+
+// Ejercicio 7. Mas de 5 camas ($gt)
+col.find(
+  { beds: { $gt: 5 } },
+  { _id: 0, name: 1, number_of_reviews: 1 }
+);
+
+// Ejercicio 8. Precio menor a 75 ($lt)
+col.find(
+  { price: { $lt: 75 } },
+  { _id: 0, name: 1, price: 1, property_type: 1 }
+);
+
+// Ejercicio 9. $and con objeto anidado: Apartment en New York
+col.find({
+  $and: [
+    { property_type: "Apartment" },
+    { "address.market": "New York" }
+  ]
+});
+
+// Ejercicio 10. $in: House o Condominium
+col.find({ property_type: { $in: ["House", "Condominium"] } });
+
+// Ejercicio 11. Regex sin distincion de mayusculas: "Luxury"
+col.find({ name: { $regex: /Luxury/i } });
+
+// Ejercicio 12. Busqueda en array: amenity "Heating"
+col.find({ amenities: "Heating" });
+
+// Ejercicio 13. $size: exactamente 20 amenities
+col.find({ amenities: { $size: 20 } });
+
+// Ejercicio 14. Los 10 mas caros (sort + limit)
+col.find(
+  {},
+  { _id: 0, name: 1, price: 1, "address.country": 1 }
+).sort({ price: -1 }).limit(10);
+
+// Ejercicio 15. Sin last_review (ausente o nulo), por number_of_reviews desc
+// { last_review: null } coincide con campo nulo y con campo ausente.
+col.find(
+  { last_review: null },
+  { _id: 0, name: 1, summary: 1, description: 1 }
+).sort({ number_of_reviews: -1 });
+
+// ---------------------------------------------------------------------
+// BLOQUE 3. ACTUALIZACION
+// ---------------------------------------------------------------------
+
+// Ejercicio 16. updateOne simple
+col.updateOne(
+  { name: "Cozy Cabin Retreat" },
+  { $set: { property_type: "Entire home/apt" } }
+);
+
+// Ejercicio 17. updateOne con $push sobre el listing del ejercicio 2
+// El documento del ejercicio 2 no tenia amenities: $push crea el array.
+col.updateOne(
+  { name: "Casa Patagonia Lodge" },
+  { $push: { amenities: "Smart TV" } }
+);
+
+// Ejercicio 18. updateMany con $inc: Spain
+col.updateMany(
+  { "address.country": "Spain" },
+  { $inc: { number_of_reviews: 1 } }
+);
+
+// Ejercicio 19. updateMany con $pull: quitar "Cable TV"
+col.updateMany(
+  { amenities: "Cable TV" },
+  { $pull: { amenities: "Cable TV" } }
+);
+
+// Ejercicio 20. Upsert
+// El filtro aporta el name; $setOnInsert solo aplica si el documento se crea.
+col.updateOne(
+  { name: "Mansion de Prueba" },
+  { $setOnInsert: { price: NumberDecimal("1500.00"), "address.country": "United States" } },
+  { upsert: true }
+);
+
+// ---------------------------------------------------------------------
+// BLOQUE 4. AGREGACION
+// ---------------------------------------------------------------------
+
+// Ejercicio 21. $match y $count: mas de 10 amenities
+col.aggregate([
+  { $match: { $expr: { $gt: [{ $size: { $ifNull: ["$amenities", []] } }, 10] } } },
+  { $count: "listings_con_mas_de_10_amenities" }
+]);
+
+// Ejercicio 22. Precio promedio por pais
+col.aggregate([
+  { $group: { _id: "$address.country", precio_promedio: { $avg: "$price" } } },
+  { $sort: { precio_promedio: -1 } }
+]);
+
+// Ejercicio 23. Top 5 amenities ($unwind + $group)
+col.aggregate([
+  { $unwind: "$amenities" },
+  { $group: { _id: "$amenities", frecuencia: { $sum: 1 } } },
+  { $sort: { frecuencia: -1 } },
+  { $limit: 5 }
+]);
+
+// Ejercicio 24. Cantidad de listings por property_type
+col.aggregate([
+  { $match: { property_type: { $exists: true } } },
+  { $group: { _id: "$property_type", cantidad: { $sum: 1 } } },
+  { $sort: { cantidad: -1 } }
+]);
+
+// Ejercicio 25. $project con conversion de tipo ($toInt)
+col.aggregate([
+  { $project: { _id: 0, name: 1, price: 1, price_entero: { $toInt: "$price" } } }
+]);
+
+// Ejercicio 26. Promedio de review_scores_rating con >= 10 reviews
+col.aggregate([
+  { $match: { number_of_reviews: { $gte: 10 } } },
+  { $group: { _id: null, promedio_rating: { $avg: "$review_scores.review_scores_rating" } } }
+]);
+
+// Ejercicio 27. $bucket por rangos de precio
+// Los limites inferiores son inclusivos y los superiores exclusivos.
+// "default" recoge todo lo que cae fuera de los limites (precio >= 1001).
+col.aggregate([
+  { $match: { price: { $exists: true } } },
+  {
+    $bucket: {
+      groupBy: "$price",
+      boundaries: [0, 101, 301, 1001],
+      default: "1000+",
+      output: { cantidad: { $sum: 1 } }
+    }
+  }
+]);
+
+// Ejercicio 28. $lookup (teorico): coleccion hipotetica "hosts"
+col.aggregate([
+  {
+    $lookup: {
+      from: "hosts",
+      localField: "host.host_id",
+      foreignField: "host_id",
+      as: "anfitrion"
+    }
+  },
+  { $unwind: { path: "$anfitrion", preserveNullAndEmptyArrays: true } },
+  { $project: { _id: 0, name: 1, "anfitrion.host_name": 1, "anfitrion.host_is_superhost": 1 } }
+]);
+
+// Ejercicio 29. Promedio de accommodates por property_type
+col.aggregate([
+  { $group: { _id: "$property_type", promedio_huespedes: { $avg: "$accommodates" } } },
+  { $sort: { promedio_huespedes: -1 } }
+]);
+
+// Ejercicio 30. Listings por anio de su ultima review
+col.aggregate([
+  { $match: { last_review: { $ne: null } } },
+  { $group: { _id: { $year: "$last_review" }, listings: { $sum: 1 } } },
+  { $sort: { _id: 1 } }
+]);

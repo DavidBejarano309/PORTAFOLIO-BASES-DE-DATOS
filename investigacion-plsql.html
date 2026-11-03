@@ -1,0 +1,1858 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PL/SQL avanzado en Oracle | David Felipe Bejarano Montes</title>
+<meta name="description" content="Investigación sobre PL/SQL avanzado en Oracle Database: arquitectura, procesamiento masivo, SQL dinámico, concurrencia, seguridad, diagnóstico y buenas prácticas." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b0e14'/%3E%3Ctext x='32' y='42' font-family='monospace' font-size='28' font-weight='700' fill='%234fd1c5' text-anchor='middle'%3E%26gt;_%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="investigacion.css" />
+</head>
+<body class="inv-body">
+  <header class="inv-top no-print">
+    <div class="inv-top__inner">
+      <a href="index.html#mod-plsql">&larr; Volver al portafolio</a>
+      <span class="inv-top__actions">
+        <a href="evidencias/plsql/investigacion-plsql-avanzado.pdf" target="_blank" rel="noopener">Descargar PDF</a>
+      </span>
+    </div>
+  </header>
+
+  <div class="inv-layout">
+    <aside class="toc-side" aria-label="Índice">
+      <p>-- contenido</p>
+      <ol id="tocList"></ol>
+    </aside>
+    <main class="doc">
+<header class="cover" id="portada">
+  <p class="cover__inst">Universidad El Bosque · Ingeniería de Sistemas</p>
+  <p class="cover__course">Bases de Datos 2 · Docente: Christian Felipe Duarte</p>
+  <h1 class="cover__title">PL/SQL avanzado en Oracle Database</h1>
+  <p class="cover__subtitle">Cómo funciona PL/SQL por dentro y cómo escribir código que rinda, resista la concurrencia y se pueda diagnosticar</p>
+  <dl class="cover__meta">
+    <div><dt>Autor</dt><dd>David Felipe Bejarano Montes</dd></div>
+    <div><dt>Versión de referencia</dt><dd>Oracle Database 19c (con notas de 21c y 23ai)</dd></div>
+    <div><dt>Fecha</dt><dd>3 de noviembre de 2026</dd></div>
+  </dl>
+</header>
+
+<nav class="toc-inline" id="tocInline" aria-label="Contenido"></nav>
+
+<section id="resumen">
+  <h2>Resumen</h2>
+  <p>
+    PL/SQL es el lenguaje de programación de Oracle y se ejecuta dentro del mismo motor de la base de datos. Eso lo hace muy
+    cómodo para trabajar con datos, pero también hace que los errores de diseño se noten más: una sentencia SQL puesta dentro de un
+    bucle, una transacción que dura demasiado o un error que nadie ve pueden afectar a todo el sistema.
+  </p>
+  <p>
+    En este trabajo reuní lo que hace falta para pasar de escribir procedimientos y triggers que simplemente funcionan a escribir
+    código que aguante volumen, usuarios concurrentes y cambios en el esquema. Los temas son cómo se ejecuta PL/SQL, los paquetes,
+    las colecciones, el procesamiento masivo, el SQL dinámico, las funciones llamadas desde SQL, las transacciones y los bloqueos,
+    los triggers, el manejo de errores, la seguridad, el diagnóstico y las pruebas. En cada uno explico cómo funciona, pongo un
+    ejemplo y comento cuándo conviene usarlo y cuándo no.
+  </p>
+  <div class="callout callout--tip">
+    <p class="callout__title">Ideas principales</p>
+    <ol>
+      <li>Casi toda la optimización en PL/SQL consiste en cruzar menos veces entre el motor PL/SQL y el motor SQL. Para eso sirven <code>BULK COLLECT</code> y <code>FORALL</code>, y todavía mejor es resolver todo en una sola sentencia SQL.</li>
+      <li>Las variables de enlace son la defensa principal contra la inyección SQL. Lo que no se puede enlazar, como los nombres de tablas, se valida con <code>DBMS_ASSERT</code>.</li>
+      <li>La consistencia ante concurrencia no viene sola. Hay que elegir entre <code>FOR UPDATE</code>, <code>SKIP LOCKED</code> o una columna de versión, y bloquear siempre en el mismo orden para evitar interbloqueos.</li>
+      <li>Un <code>WHEN OTHERS</code> que no relanza el error esconde problemas y deja datos a medias sin que nadie se entere.</li>
+      <li>Antes de optimizar hay que medir. El perfilador jerárquico (<code>DBMS_HPROF</code>) separa el tiempo de PL/SQL del de SQL y muestra dónde está el cuello de botella.</li>
+    </ol>
+  </div>
+</section>
+
+<section id="alcance">
+  <h2>Alcance, método y convenciones</h2>
+  <h3>Alcance y fuentes</h3>
+  <p>
+    Tomé Oracle Database 19c como referencia porque es la versión que usamos en los talleres del curso. Cuando algo es de 21c o de 23ai
+    lo aclaro en el texto. Los datos sobre arquitectura, parámetros de compilación, perfilador jerárquico, novedades de cada versión y
+    SQL dinámico los verifiqué en la documentación oficial de Oracle. En las referencias separé las páginas que consulté directamente de
+    las lecturas de apoyo.
+  </p>
+  <div class="callout callout--warn">
+    <p class="callout__title">Sobre los ejemplos de código</p>
+    <p>
+      Los ejemplos están escritos con la sintaxis de la documentación de 19c, pero este documento no trae resultados de ejecución
+      míos. Lo mejor es correrlos en SQL Developer, con un esquema de pruebas, antes de usarlos como evidencia. En la parte de
+      rendimiento (sección 4) dejé un script para medir en lugar de poner números que yo no medí.
+    </p>
+  </div>
+
+  <h3>Convención de nombres</h3>
+  <p>Todo el código sigue la convención de nombres que usamos en los talleres, para que se vea de un vistazo qué es cada elemento:</p>
+  <table class="tbl">
+    <thead><tr><th>Elemento</th><th>Prefijo</th><th>Ejemplo</th></tr></thead>
+    <tbody>
+      <tr><td>Parámetro</td><td><code>param_</code></td><td><code>param_id_producto</code></td></tr>
+      <tr><td>Procedimiento almacenado</td><td><code>sp_</code></td><td><code>sp_registrar_salida</code></td></tr>
+      <tr><td>Función</td><td><code>fn_</code></td><td><code>fn_stock_actual</code></td></tr>
+      <tr><td>Paquete</td><td><code>pck_</code></td><td><code>pck_inventario</code></td></tr>
+      <tr><td>Trigger</td><td><code>trg_</code></td><td><code>trg_movimiento_limite</code></td></tr>
+      <tr><td>Cursor</td><td><code>cur_</code></td><td><code>cur_pendientes</code></td></tr>
+      <tr><td>Excepción</td><td><code>e_</code></td><td><code>e_stock_insuficiente</code></td></tr>
+      <tr><td>Registro</td><td><code>r_</code></td><td><code>r_producto</code></td></tr>
+      <tr><td>Índice</td><td><code>ix_</code></td><td><code>ix_movimiento_producto</code></td></tr>
+      <tr><td>Variable</td><td><code>v</code> + letra del tipo</td><td><code>vv_</code> (varchar), <code>vn_</code> (number), <code>vd_</code> (date), <code>vb_</code> (boolean), <code>vc_</code> (char)</td></tr>
+    </tbody>
+  </table>
+  <p>Para las colecciones agregué <code>ty_</code> (tipo) y <code>vt_</code> (variable de colección), siguiendo la misma idea.</p>
+
+  <h3>Esquema de laboratorio</h3>
+  <p>Los ejemplos usan un esquema pequeño, separado del de los talleres. Se crea una sola vez:</p>
+  <figure class="code">
+    <figcaption>Código 0.1 · Esquema de laboratorio</figcaption>
+<pre><code data-sql>CREATE TABLE producto (
+    id_producto     NUMBER          PRIMARY KEY,
+    codigo          VARCHAR2(20)    NOT NULL UNIQUE,
+    nombre          VARCHAR2(100)   NOT NULL,
+    precio_unitario NUMBER(12,2)    NOT NULL,
+    costo_unitario  NUMBER(12,2)    NOT NULL,
+    stock           NUMBER(10)      DEFAULT 0 NOT NULL CHECK (stock &gt;= 0),
+    activo          CHAR(1)         DEFAULT 'S' NOT NULL
+);
+
+CREATE TABLE movimiento_stock (
+    id_movimiento NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id_producto   NUMBER      NOT NULL REFERENCES producto,
+    tipo          VARCHAR2(10) NOT NULL CHECK (tipo IN ('ENTRADA','SALIDA','AJUSTE')),
+    cantidad      NUMBER(10)  NOT NULL,
+    fecha         DATE        DEFAULT SYSDATE NOT NULL
+);
+
+CREATE TABLE log_errores (
+    id_log  NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    fecha   TIMESTAMP DEFAULT SYSTIMESTAMP,
+    modulo  VARCHAR2(100),
+    codigo  NUMBER,
+    mensaje VARCHAR2(4000),
+    traza   CLOB
+);
+
+CREATE TABLE tarea_cola (
+    id_tarea NUMBER PRIMARY KEY,
+    estado   VARCHAR2(12) DEFAULT 'PENDIENTE' NOT NULL
+);</code></pre>
+  </figure>
+</section>
+
+<section id="arquitectura">
+  <h2>1. Arquitectura y ejecución de PL/SQL</h2>
+
+  <h3>1.1 Dos motores y una frontera</h3>
+  <p>
+    PL/SQL tiene su propio motor para compilar y ejecutar el código. Según la documentación de Oracle, ese motor ejecuta directamente
+    las sentencias procedimentales (asignaciones, condicionales, bucles, llamadas a subprogramas) y le pasa las sentencias SQL al motor
+    SQL de la base de datos <a class="ref" href="#ref-2">[2]</a>. Cada vez que el control pasa de un motor al otro se habla de un
+    <em>cambio de contexto</em>, y cada sentencia SQL ejecutada desde PL/SQL implica uno <a class="ref" href="#ref-11">[11]</a>.
+  </p>
+  <p>
+    Un cambio de contexto aislado cuesta muy poco. El problema aparece cuando se repite miles de veces: si un bucle actualiza 10.000
+    filas de a una, son 10.000 cambios de contexto. Tom Kyte llamaba a esto <em>slow-by-slow processing</em>
+    <a class="ref" href="#ref-11">[11]</a>. Es la idea que más conecta el resto del documento, porque casi todas las técnicas de
+    rendimiento de PL/SQL se reducen a cruzar esa frontera menos veces.
+  </p>
+  <figure class="diagram">
+    <svg viewBox="0 0 760 250" role="img" aria-labelledby="fig1t fig1d">
+      <title id="fig1t">Motor PL/SQL y motor SQL</title>
+      <desc id="fig1d">Un bloque PL/SQL ejecuta sus sentencias procedimentales en el motor PL/SQL y envía cada sentencia SQL al motor SQL mediante un cambio de contexto.</desc>
+      <defs>
+        <marker id="arr-c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="d-head-c"/></marker>
+        <marker id="arr-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="d-head-a"/></marker>
+      </defs>
+      <rect class="d-box" x="20" y="30" width="180" height="190" rx="10"/>
+      <text class="d-title" x="110" y="58" text-anchor="middle">Bloque PL/SQL</text>
+      <text class="d-text" x="110" y="92" text-anchor="middle">asignaciones</text>
+      <text class="d-text" x="110" y="114" text-anchor="middle">condicionales y bucles</text>
+      <text class="d-text" x="110" y="136" text-anchor="middle">llamadas a subprogramas</text>
+      <text class="d-text d-accent" x="110" y="176" text-anchor="middle">SELECT / INSERT /</text>
+      <text class="d-text d-accent" x="110" y="196" text-anchor="middle">UPDATE / DELETE</text>
+
+      <rect class="d-box d-box--a" x="250" y="30" width="180" height="190" rx="10"/>
+      <text class="d-title" x="340" y="58" text-anchor="middle">Motor PL/SQL</text>
+      <text class="d-text" x="340" y="100" text-anchor="middle">ejecuta lo procedimental</text>
+      <text class="d-text" x="340" y="122" text-anchor="middle">entrega el SQL al</text>
+      <text class="d-text" x="340" y="144" text-anchor="middle">motor de la base de datos</text>
+
+      <rect class="d-box d-box--b" x="560" y="30" width="180" height="190" rx="10"/>
+      <text class="d-title" x="650" y="58" text-anchor="middle">Motor SQL</text>
+      <text class="d-text" x="650" y="100" text-anchor="middle">optimiza y ejecuta</text>
+      <text class="d-text" x="650" y="122" text-anchor="middle">lee y escribe datos</text>
+      <text class="d-text" x="650" y="144" text-anchor="middle">devuelve resultados</text>
+
+      <path class="d-arrow" d="M200 125 H250"/>
+      <path class="d-arrow" d="M430 105 H560"/>
+      <path class="d-arrow d-arrow--back" d="M560 150 H430"/>
+      <text class="d-note" x="495" y="84" text-anchor="middle">cambio de contexto</text>
+    </svg>
+    <figcaption>Figura 1.1 · Cada sentencia SQL cruza la frontera entre los dos motores. Elaboración propia a partir de la descripción de <a class="ref" href="#ref-2">[2]</a>.</figcaption>
+  </figure>
+
+  <h3>1.2 Unidades PL/SQL</h3>
+  <p>La documentación llama unidad PL/SQL a cualquiera de estas <a class="ref" href="#ref-2">[2]</a>:</p>
+  <ul>
+    <li>un bloque anónimo;</li>
+    <li>una función, un procedimiento, una biblioteca (<code>LIBRARY</code>) o un trigger;</li>
+    <li>la especificación y el cuerpo de un paquete;</li>
+    <li>la especificación y el cuerpo de un tipo.</li>
+  </ul>
+  <p>
+    La diferencia práctica entre un bloque anónimo y una unidad almacenada es que la unidad se guarda en la base de datos con
+    <code>CREATE [OR REPLACE]</code> y conserva, junto con sus metadatos, los parámetros con los que se compiló. El bloque anónimo no
+    se guarda, así que no tiene metadatos que reutilizar <a class="ref" href="#ref-2">[2]</a>. Por eso lo almacenado sirve para
+    versionar, dar permisos y reutilizar desde cualquier sesión, y lo anónimo se queda para pruebas y scripts.
+  </p>
+
+  <h3>1.3 Parámetros de compilación</h3>
+  <p>Cada unidad almacenada se compila con unos parámetros que quedan guardados con ella <a class="ref" href="#ref-2">[2]</a>:</p>
+  <table class="tbl">
+    <thead><tr><th>Parámetro</th><th>Qué controla</th></tr></thead>
+    <tbody>
+      <tr><td><code>PLSQL_CODE_TYPE</code></td><td><code>INTERPRETED</code> (valor predeterminado) o <code>NATIVE</code></td></tr>
+      <tr><td><code>PLSQL_OPTIMIZE_LEVEL</code></td><td>Nivel de optimización del compilador. Con valor 1 se genera código apto para el depurador</td></tr>
+      <tr><td><code>PLSQL_WARNINGS</code></td><td>Activa o desactiva advertencias del compilador y define cuáles se tratan como error</td></tr>
+      <tr><td><code>PLSQL_CCFLAGS</code></td><td>Banderas para la compilación condicional</td></tr>
+      <tr><td><code>PLSCOPE_SETTINGS</code></td><td>Recolección de datos de identificadores para PL/Scope</td></tr>
+      <tr><td><code>NLS_LENGTH_SEMANTICS</code></td><td>Si <code>CHAR</code> y <code>VARCHAR2</code> miden su longitud en bytes o en caracteres</td></tr>
+    </tbody>
+  </table>
+  <p>
+    Con <code>PLSQL_CODE_TYPE = NATIVE</code> las unidades se compilan a código máquina y se ejecutan sin pasar por el intérprete de
+    bytecode. Con <code>INTERPRETED</code> se compilan a bytecode que ejecuta el intérprete de PL/SQL
+    <a class="ref" href="#ref-3">[3]</a>. Hay tres cosas que conviene tener presentes:
+  </p>
+  <ul>
+    <li>cambiar el parámetro no afecta a las unidades que ya estaban compiladas <a class="ref" href="#ref-3">[3]</a>;</li>
+    <li>una unidad compilada como <code>NATIVE</code> sigue recompilándose como <code>NATIVE</code> en sus recompilaciones automáticas <a class="ref" href="#ref-3">[3]</a>;</li>
+    <li>si <code>PLSQL_OPTIMIZE_LEVEL</code> es menor que 2, el compilador genera código interpretado aunque se pida <code>NATIVE</code>, y lo avisa con una advertencia <a class="ref" href="#ref-2">[2]</a>.</li>
+  </ul>
+  <p>
+    La compilación nativa ayuda más cuando el código hace mucho cálculo (bucles, aritmética, manejo de cadenas) y casi nada cuando
+    el tiempo se va en SQL, porque ahí lo gasta el motor SQL y no el intérprete.
+  </p>
+  <figure class="code">
+    <figcaption>Código 1.1 · Consultar y modificar la configuración de compilación</figcaption>
+<pre><code data-sql>-- ¿Con qué parámetros se compiló cada unidad?
+SELECT name, type, plsql_code_type, plsql_optimize_level, plsql_warnings
+  FROM user_plsql_object_settings
+ WHERE name IN ('PCK_INVENTARIO', 'SP_REGISTRAR_ERROR');
+
+-- Compilar nativamente solo en esta sesión
+ALTER SESSION SET PLSQL_OPTIMIZE_LEVEL = 2;
+ALTER SESSION SET PLSQL_CODE_TYPE = NATIVE;
+ALTER PACKAGE pck_inventario COMPILE BODY;
+
+-- Recompilar conservando los parámetros con que se creó la unidad
+ALTER PACKAGE pck_inventario COMPILE REUSE SETTINGS;</code></pre>
+  </figure>
+  <p>
+    Para ver esta configuración se usa la vista <code>ALL_PLSQL_OBJECT_SETTINGS</code>, o <code>USER_PLSQL_OBJECT_SETTINGS</code> si
+    solo interesa el esquema propio <a class="ref" href="#ref-2">[2]</a>.
+  </p>
+
+  <h3>1.4 Dependencias e invalidación</h3>
+  <p>
+    Una unidad almacenada depende de los objetos que usa (tablas, vistas, otros paquetes). Si uno de esos objetos cambia, Oracle marca
+    como <code>INVALID</code> las unidades que dependen de él y las vuelve a compilar la siguiente vez que alguien las llama. En un
+    sistema real esto trae tres consecuencias:
+  </p>
+  <ul>
+    <li>si la unidad invalidada ya no compila, deja de estar disponible hasta que se corrija;</li>
+    <li>recompilar con el sistema en uso puede generar esperas, porque la recompilación necesita acceso exclusivo a la unidad;</li>
+    <li>separar especificación y cuerpo ayuda: si solo cambia el cuerpo, las unidades que dependen de la especificación no se invalidan.</li>
+  </ul>
+  <figure class="code">
+    <figcaption>Código 1.2 · Revisar y reparar objetos inválidos</figcaption>
+<pre><code data-sql>-- Objetos inválidos del esquema
+SELECT object_name, object_type, status
+  FROM user_objects
+ WHERE status = 'INVALID';
+
+-- ¿De qué depende una unidad?
+SELECT referenced_owner, referenced_name, referenced_type
+  FROM user_dependencies
+ WHERE name = 'PCK_INVENTARIO';
+
+-- Errores de compilación de una unidad
+SELECT line, position, text
+  FROM user_errors
+ WHERE name = 'PCK_INVENTARIO'
+ ORDER BY sequence;</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p>Después de cualquier cambio en el esquema conviene revisar <code>USER_OBJECTS</code> (estado <code>INVALID</code>) y <code>USER_ERRORS</code> antes de dar el despliegue por terminado.</p>
+  </div>
+</section>
+
+<section id="paquetes">
+  <h2>2. Diseño modular con paquetes</h2>
+
+  <h3>2.1 Por qué usar paquetes</h3>
+  <p>
+    Un paquete reúne tipos, constantes, excepciones, cursores y subprogramas relacionados en dos partes: la especificación, que es la
+    interfaz pública, y el cuerpo, que es la implementación. Las ventajas que encontré son estas:
+  </p>
+  <ul>
+    <li>Encapsulación: lo que no aparece en la especificación es privado, así que quien usa el paquete no puede depender de detalles internos.</li>
+    <li>Menos invalidaciones: cambiar el cuerpo sin tocar la especificación no invalida a quienes la usan.</li>
+    <li>Sobrecarga: varios subprogramas pueden llamarse igual si tienen firmas distintas.</li>
+    <li>Estado: las variables del paquete duran lo que dure la sesión, lo que sirve para cachés pequeñas o contadores.</li>
+    <li>Carga en bloque: al llamar un subprograma se carga todo el paquete en memoria, y las llamadas siguientes ya no repiten la carga.</li>
+  </ul>
+  <figure class="code">
+    <figcaption>Código 2.1 · Especificación y cuerpo de <code>pck_inventario</code></figcaption>
+<pre><code data-sql>CREATE OR REPLACE PACKAGE pck_inventario AS
+    gc_stock_maximo CONSTANT NUMBER := 100000;
+
+    -- Excepción pública, asociada al código de aplicación -20101
+    e_stock_insuficiente EXCEPTION;
+    PRAGMA EXCEPTION_INIT(e_stock_insuficiente, -20101);
+
+    FUNCTION fn_stock_actual (
+        param_id_producto IN producto.id_producto%TYPE
+    ) RETURN NUMBER;
+
+    PROCEDURE sp_registrar_salida (
+        param_id_producto IN producto.id_producto%TYPE,
+        param_cantidad    IN NUMBER
+    );
+END pck_inventario;
+/
+
+CREATE OR REPLACE PACKAGE BODY pck_inventario AS
+    vn_llamadas NUMBER := 0;   -- estado privado de la sesión
+
+    -- Subprograma privado: no aparece en la especificación
+    PROCEDURE sp_validar_cantidad (param_cantidad IN NUMBER) IS
+    BEGIN
+        IF param_cantidad IS NULL OR param_cantidad &lt;= 0 THEN
+            RAISE_APPLICATION_ERROR(-20100, 'La cantidad debe ser positiva');
+        END IF;
+    END sp_validar_cantidad;
+
+    FUNCTION fn_stock_actual (
+        param_id_producto IN producto.id_producto%TYPE
+    ) RETURN NUMBER IS
+        vn_stock producto.stock%TYPE;
+    BEGIN
+        SELECT stock INTO vn_stock
+          FROM producto
+         WHERE id_producto = param_id_producto;
+        RETURN vn_stock;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            RETURN 0;
+    END fn_stock_actual;
+
+    PROCEDURE sp_registrar_salida (
+        param_id_producto IN producto.id_producto%TYPE,
+        param_cantidad    IN NUMBER
+    ) IS
+        vn_stock producto.stock%TYPE;
+    BEGIN
+        sp_validar_cantidad(param_cantidad);
+
+        -- Se bloquea la fila: nadie más puede cambiar el saldo entre leer y escribir
+        SELECT stock INTO vn_stock
+          FROM producto
+         WHERE id_producto = param_id_producto
+           FOR UPDATE;
+
+        IF vn_stock &lt; param_cantidad THEN
+            RAISE_APPLICATION_ERROR(-20101,
+                'Stock insuficiente: hay ' || vn_stock || ' y se piden ' || param_cantidad);
+        END IF;
+
+        UPDATE producto
+           SET stock = stock - param_cantidad
+         WHERE id_producto = param_id_producto;
+
+        INSERT INTO movimiento_stock (id_producto, tipo, cantidad)
+        VALUES (param_id_producto, 'SALIDA', param_cantidad);
+
+        vn_llamadas := vn_llamadas + 1;
+    END sp_registrar_salida;
+
+BEGIN
+    -- Bloque de inicialización: se ejecuta una vez por sesión,
+    -- la primera vez que se referencia el paquete
+    vn_llamadas := 0;
+END pck_inventario;
+/</code></pre>
+  </figure>
+  <p>
+    La excepción <code>e_stock_insuficiente</code> queda vinculada al código <code>-20101</code> con <code>PRAGMA EXCEPTION_INIT</code>. Así,
+    quien llama al paquete puede capturarla por su nombre (<code>WHEN pck_inventario.e_stock_insuficiente</code>) en lugar de comparar
+    números de error, y dentro del cuerpo se sigue usando <code>RAISE_APPLICATION_ERROR</code> para agregar un mensaje que explique qué pasó.
+  </p>
+
+  <h3>2.2 El estado del paquete</h3>
+  <p>
+    Las variables declaradas en la especificación o en el cuerpo, fuera de los subprogramas, conservan su valor durante la sesión. Es
+    útil para cachés pequeñas, contadores o configuración. Pero el estado es por sesión y no global, y eso importa en dos casos:
+  </p>
+  <ul>
+    <li>Con agrupaciones de conexiones (<em>connection pools</em>), una misma sesión atiende a clientes distintos en momentos distintos. Si el estado asume un solo usuario por sesión, puede pasar información de un cliente a otro.</li>
+    <li>Al recompilar el paquete, las sesiones que tenían estado reciben <code>ORA-04068</code> («existing state of packages has been discarded») en su siguiente llamada.</li>
+  </ul>
+  <p>Por eso lo razonable es guardar en el estado solo datos que se puedan reconstruir sin pérdida y exponerlos mediante funciones, no mediante variables públicas.</p>
+
+  <h3>2.3 Limitar quién puede llamar: <code>ACCESSIBLE BY</code></h3>
+  <p>
+    Desde Oracle 12.2 una unidad puede indicar con <code>ACCESSIBLE BY</code> qué otras unidades tienen permitido llamarla. Sirve para
+    tener subprogramas internos fuera del paquete, por ejemplo cuando se divide un paquete grande en varios archivos, sin dejarlos
+    disponibles para el resto de la aplicación.
+  </p>
+  <figure class="code">
+    <figcaption>Código 2.2 · Un procedimiento que solo puede invocar <code>pck_inventario</code></figcaption>
+<pre><code data-sql>CREATE OR REPLACE PROCEDURE sp_ajuste_interno (
+    param_id_producto IN NUMBER
+)
+    ACCESSIBLE BY (PACKAGE pck_inventario)
+IS
+BEGIN
+    NULL;  -- lógica interna
+END sp_ajuste_interno;
+/</code></pre>
+  </figure>
+  <p>Si otro bloque intenta llamarlo, falla al compilar con <code>PLS-00904</code> (privilegio insuficiente para acceder al objeto).</p>
+</section>
+
+<section id="colecciones">
+  <h2>3. Tipos compuestos y colecciones</h2>
+
+  <h3>3.1 Registros y <code>%ROWTYPE</code></h3>
+  <p>
+    Un registro agrupa campos de tipos distintos bajo un solo nombre. Con <code>%ROWTYPE</code> el registro copia la estructura de una
+    tabla, una vista o un cursor, y se actualiza solo cuando la tabla cambia y se recompila el código. <code>%TYPE</code> hace lo mismo
+    pero para una sola columna. Los dos evitan un error muy común, que es declarar a mano un <code>VARCHAR2(50)</code> cuando la
+    columna ya creció a 100.
+  </p>
+
+  <h3>3.2 Los tres tipos de colección</h3>
+  <p>PL/SQL tiene tres tipos de colección y cada uno sirve para algo distinto:</p>
+  <table class="tbl">
+    <thead>
+      <tr><th>Característica</th><th>Arreglo asociativo</th><th>Tabla anidada</th><th><code>VARRAY</code></th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Índice</td><td><code>PLS_INTEGER</code> o <code>VARCHAR2</code> (clave)</td><td>Entero consecutivo desde 1</td><td>Entero consecutivo desde 1</td></tr>
+      <tr><td>Tamaño</td><td>Sin límite</td><td>Sin límite, crece con <code>EXTEND</code></td><td>Tiene un máximo fijo</td></tr>
+      <tr><td>Densidad</td><td>Dispersa por naturaleza</td><td>Densa al crearse, puede quedar dispersa al borrar</td><td>Siempre densa</td></tr>
+      <tr><td>Se guarda en una columna</td><td>No</td><td>Sí (tipo de esquema)</td><td>Sí (tipo de esquema)</td></tr>
+      <tr><td>Operadores de conjunto (<code>MULTISET</code>)</td><td>No</td><td>Sí</td><td>No</td></tr>
+      <tr><td>Uso típico</td><td>Cachés en memoria, búsquedas por clave</td><td>Lotes, resultados, parámetros de tipo tabla</td><td>Listas pequeñas de tamaño acotado</td></tr>
+    </tbody>
+  </table>
+  <figure class="code">
+    <figcaption>Código 3.1 · Arreglo asociativo: caché de precios por código</figcaption>
+<pre><code data-sql>DECLARE
+    TYPE ty_aa_precio IS TABLE OF NUMBER INDEX BY VARCHAR2(20);
+    vt_precios ty_aa_precio;
+    vv_clave   VARCHAR2(20);
+BEGIN
+    vt_precios('MARTILLO') := 35000;
+    vt_precios('TALADRO')  := 280000;
+
+    -- Recorrido ordenado por clave
+    vv_clave := vt_precios.FIRST;
+    WHILE vv_clave IS NOT NULL LOOP
+        DBMS_OUTPUT.PUT_LINE(vv_clave || ' -&gt; ' || vt_precios(vv_clave));
+        vv_clave := vt_precios.NEXT(vv_clave);
+    END LOOP;
+
+    -- Acceder a una clave inexistente lanza NO_DATA_FOUND: se verifica antes
+    IF NOT vt_precios.EXISTS('SIERRA') THEN
+        DBMS_OUTPUT.PUT_LINE('SIERRA no está en la caché');
+    END IF;
+END;
+/</code></pre>
+  </figure>
+  <figure class="code">
+    <figcaption>Código 3.2 · Tablas anidadas y operadores de conjunto</figcaption>
+<pre><code data-sql>DECLARE
+    TYPE ty_nt_num IS TABLE OF NUMBER;
+    vt_a ty_nt_num := ty_nt_num(1, 2, 3, 4);
+    vt_b ty_nt_num := ty_nt_num(3, 4, 5);
+    vt_c ty_nt_num;
+BEGIN
+    vt_c := vt_a MULTISET INTERSECT vt_b;          -- (3, 4)
+    DBMS_OUTPUT.PUT_LINE('Intersección: ' || vt_c.COUNT);
+
+    vt_c := vt_a MULTISET UNION DISTINCT vt_b;     -- (1, 2, 3, 4, 5)
+    DBMS_OUTPUT.PUT_LINE('Unión sin repetidos: ' || vt_c.COUNT);
+
+    vt_c := vt_a MULTISET EXCEPT vt_b;             -- (1, 2)
+    DBMS_OUTPUT.PUT_LINE('Diferencia: ' || vt_c.COUNT);
+END;
+/</code></pre>
+  </figure>
+
+  <h3>3.3 Métodos de colección</h3>
+  <p>
+    Las colecciones traen métodos propios: <code>COUNT</code>, <code>FIRST</code>, <code>LAST</code>, <code>NEXT</code>, <code>PRIOR</code>,
+    <code>EXISTS</code>, <code>EXTEND</code>, <code>TRIM</code> y <code>DELETE</code>. Hay dos errores que se repiten bastante. Uno es usar
+    <code>LAST</code> o <code>COUNT</code> como límite de un bucle sobre una colección dispersa, porque los índices intermedios no existen.
+    El otro es olvidar <code>EXTEND</code> antes de asignar a una posición nueva de una tabla anidada, lo que produce
+    <code>ORA-06533</code> (subscript beyond count).
+  </p>
+
+  <h3>3.4 Expresiones calificadas y nuevas formas de iterar</h3>
+  <p>
+    Desde 18c, las expresiones calificadas permiten construir cualquier valor PL/SQL (registros, arreglos asociativos) nombrando los
+    elementos dentro de la misma expresión <a class="ref" href="#ref-8">[8]</a>. La versión 21c agregó controles de iteración
+    ampliados, entre ellos el rango con paso <a class="ref" href="#ref-8">[8]</a>.
+  </p>
+  <figure class="code">
+    <figcaption>Código 3.3 · Expresiones calificadas (18c) y rango con paso (21c)</figcaption>
+<pre><code data-sql>DECLARE
+    TYPE ty_aa IS TABLE OF NUMBER INDEX BY VARCHAR2(10);
+    vt_cupo ty_aa := ty_aa('BRONCE' =&gt; 1000, 'PLATA' =&gt; 5000, 'ORO' =&gt; 20000);  -- 18c
+BEGIN
+    DBMS_OUTPUT.PUT_LINE('Cupo ORO: ' || vt_cupo('ORO'));
+
+    -- 21c: rango con paso (1, 3, 5, 7, 9)
+    FOR vn_i IN 1 .. 10 BY 2 LOOP
+        DBMS_OUTPUT.PUT_LINE(vn_i);
+    END LOOP;
+END;
+/</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Compatibilidad</p>
+    <p>La primera parte del ejemplo 3.3 necesita Oracle 18c o superior y el bucle con <code>BY</code> necesita 21c. En un entorno 19c hay que quitar el bucle.</p>
+  </div>
+</section>
+
+<section id="masivo">
+  <h2>4. Procesamiento masivo: <code>BULK COLLECT</code> y <code>FORALL</code></h2>
+
+  <h3>4.1 El problema de procesar fila por fila</h3>
+  <p>
+    Leer en un bucle y hacer un <code>UPDATE</code> por cada fila es el patrón que más problemas de rendimiento causa en PL/SQL. Cada
+    iteración manda una sentencia al motor SQL, con su cambio de contexto <a class="ref" href="#ref-11">[11]</a>. Para resolverlo
+    hay un orden de preferencia:
+  </p>
+  <ol>
+    <li>Hacerlo con una sola sentencia SQL (un <code>UPDATE</code> o un <code>MERGE</code> con la lógica en el <code>WHERE</code> y el <code>SET</code>). Es lo más rápido y lo más simple.</li>
+    <li>Si la lógica no cabe en SQL, procesar por lotes: <code>BULK COLLECT</code> para leer y <code>FORALL</code> para escribir.</li>
+    <li>Solo si nada de lo anterior aplica, procesar fila por fila.</li>
+  </ol>
+  <figure class="diagram">
+    <svg viewBox="0 0 760 230" role="img" aria-labelledby="fig2t fig2d">
+      <title id="fig2t">Fila por fila frente a procesamiento por lotes</title>
+      <desc id="fig2d">A la izquierda, un bucle envía una sentencia por fila al motor SQL con N cambios de contexto. A la derecha, FORALL envía todo el lote en un solo cambio de contexto.</desc>
+      <text class="d-title" x="190" y="26" text-anchor="middle">Fila por fila</text>
+      <rect class="d-box d-box--a" x="30" y="46" width="130" height="150" rx="10"/>
+      <text class="d-text" x="95" y="72" text-anchor="middle">Motor PL/SQL</text>
+      <rect class="d-box d-box--b" x="230" y="46" width="130" height="150" rx="10"/>
+      <text class="d-text" x="295" y="72" text-anchor="middle">Motor SQL</text>
+      <path class="d-arrow" d="M160 90 H230"/><path class="d-arrow" d="M160 112 H230"/><path class="d-arrow" d="M160 134 H230"/><path class="d-arrow" d="M160 156 H230"/>
+      <text class="d-note" x="195" y="184" text-anchor="middle">N sentencias, N cambios</text>
+
+      <text class="d-title" x="570" y="26" text-anchor="middle">Por lotes con FORALL</text>
+      <rect class="d-box d-box--a" x="410" y="46" width="130" height="150" rx="10"/>
+      <text class="d-text" x="475" y="72" text-anchor="middle">Motor PL/SQL</text>
+      <rect class="d-box d-box--b" x="610" y="46" width="130" height="150" rx="10"/>
+      <text class="d-text" x="675" y="72" text-anchor="middle">Motor SQL</text>
+      <path class="d-arrow d-arrow--thick" d="M540 121 H610"/>
+      <text class="d-note" x="575" y="184" text-anchor="middle">1 sentencia, 1 cambio</text>
+    </svg>
+    <figcaption>Figura 4.1 · Idea central del procesamiento masivo. Elaboración propia.</figcaption>
+  </figure>
+  <figure class="code">
+    <figcaption>Código 4.1 · El antipatrón y su corrección en SQL</figcaption>
+<pre><code data-sql>-- Antipatrón: un UPDATE por cada fila
+BEGIN
+    FOR r_p IN (SELECT id_producto FROM producto WHERE activo = 'S') LOOP
+        UPDATE producto
+           SET precio_unitario = precio_unitario * 1.05
+         WHERE id_producto = r_p.id_producto;
+    END LOOP;
+    COMMIT;
+END;
+/
+
+-- Corrección: una sola sentencia, sin bucle
+UPDATE producto
+   SET precio_unitario = precio_unitario * 1.05
+ WHERE activo = 'S';
+COMMIT;</code></pre>
+  </figure>
+
+  <h3>4.2 <code>BULK COLLECT</code> con <code>LIMIT</code></h3>
+  <p>
+    <code>BULK COLLECT</code> trae muchas filas en un solo cambio de contexto y las deja en colecciones. Si no se le pone límite, una
+    consulta grande puede agotar la memoria PGA, y por eso se recomienda usar un cursor explícito con
+    <code>FETCH ... BULK COLLECT INTO ... LIMIT n</code> dentro de un bucle <a class="ref" href="#ref-11">[11]</a>. El artículo de Oracle
+    dice que rara vez conviene un límite menor a 100 <a class="ref" href="#ref-11">[11]</a>. Además, un bucle <code>FOR</code> sobre un cursor ya
+    se optimiza solo para traer 100 filas por vez cuando el nivel de optimización es 2 o mayor, y ese valor no se puede cambiar
+    <a class="ref" href="#ref-11">[11]</a>.
+  </p>
+  <div class="callout callout--warn">
+    <p class="callout__title">Ojo con <code>%NOTFOUND</code> y <code>LIMIT</code></p>
+    <p>
+      En el último <code>FETCH</code> con <code>LIMIT</code> pueden llegar filas y a la vez activarse <code>%NOTFOUND</code>. Si el
+      <code>EXIT WHEN cur%NOTFOUND</code> está justo después del <code>FETCH</code>, esas últimas filas se pierden
+      <a class="ref" href="#ref-11">[11]</a>. Lo más seguro es salir cuando <code>colección.COUNT = 0</code> o mover la condición al final del
+      bucle, después de procesar el lote.
+    </p>
+  </div>
+
+  <h3>4.3 <code>FORALL</code>: escribir por lotes</h3>
+  <p>
+    <code>FORALL</code> le manda al motor SQL una sola sentencia de DML (<code>INSERT</code>, <code>UPDATE</code>, <code>DELETE</code> o
+    <code>MERGE</code>) junto con todos los valores de la colección. Aunque se escriba parecido, no es un bucle: es una instrucción única
+    que recorre un rango de índices.
+  </p>
+  <figure class="code">
+    <figcaption>Código 4.2 · Lectura con <code>LIMIT</code> y escritura con <code>FORALL</code></figcaption>
+<pre><code data-sql>DECLARE
+    CURSOR cur_prod IS
+        SELECT id_producto, precio_unitario
+          FROM producto
+         WHERE activo = 'S';
+
+    TYPE ty_nt_id     IS TABLE OF producto.id_producto%TYPE;
+    TYPE ty_nt_precio IS TABLE OF producto.precio_unitario%TYPE;
+    vt_id     ty_nt_id;
+    vt_precio ty_nt_precio;
+BEGIN
+    OPEN cur_prod;
+    LOOP
+        FETCH cur_prod BULK COLLECT INTO vt_id, vt_precio LIMIT 500;
+        EXIT WHEN vt_id.COUNT = 0;          -- seguro: no pierde el último lote
+
+        FORALL vn_i IN 1 .. vt_id.COUNT
+            UPDATE producto
+               SET precio_unitario = vt_precio(vn_i) * 1.05
+             WHERE id_producto = vt_id(vn_i);
+    END LOOP;
+    CLOSE cur_prod;
+    COMMIT;
+END;
+/</code></pre>
+  </figure>
+
+  <h3>4.4 Errores dentro de un lote: <code>SAVE EXCEPTIONS</code></h3>
+  <p>
+    Por defecto, si una fila del lote falla, <code>FORALL</code> se detiene y se deshacen las filas que esa sentencia ya había procesado.
+    Con <code>SAVE EXCEPTIONS</code> sigue con el resto y deja el detalle de los fallos en <code>SQL%BULK_EXCEPTIONS</code>. Al terminar
+    lanza <code>ORA-24381</code> (errores en DML de arreglo), que hay que capturar para revisar qué filas fallaron.
+  </p>
+  <figure class="code">
+    <figcaption>Código 4.3 · Procesar el lote completo y reportar las filas rechazadas</figcaption>
+<pre><code data-sql>DECLARE
+    TYPE ty_nt_id IS TABLE OF NUMBER;
+    vt_ids ty_nt_id := ty_nt_id(1001, 1002, 1003);
+    e_error_lote EXCEPTION;
+    PRAGMA EXCEPTION_INIT(e_error_lote, -24381);
+BEGIN
+    FORALL vn_i IN 1 .. vt_ids.COUNT SAVE EXCEPTIONS
+        UPDATE producto
+           SET stock = stock - 10          -- falla si deja el stock negativo (CHECK)
+         WHERE id_producto = vt_ids(vn_i);
+    COMMIT;
+EXCEPTION
+    WHEN e_error_lote THEN
+        FOR vn_j IN 1 .. SQL%BULK_EXCEPTIONS.COUNT LOOP
+            DBMS_OUTPUT.PUT_LINE(
+                'Posición ' || SQL%BULK_EXCEPTIONS(vn_j).ERROR_INDEX ||
+                ' (id ' || vt_ids(SQL%BULK_EXCEPTIONS(vn_j).ERROR_INDEX) || '): ' ||
+                SQLERRM(-SQL%BULK_EXCEPTIONS(vn_j).ERROR_CODE));
+        END LOOP;
+        COMMIT;   -- confirma lo que sí se pudo aplicar
+END;
+/</code></pre>
+  </figure>
+
+  <h3>4.5 Colecciones dispersas y <code>RETURNING</code></h3>
+  <ul>
+    <li><code>FORALL i IN INDICES OF colección</code> recorre solo los índices que existen en una colección dispersa. <code>VALUES OF</code> permite recorrer los índices que indique otra colección.</li>
+    <li><code>SQL%BULK_ROWCOUNT(i)</code> dice cuántas filas afectó cada ejecución individual del lote.</li>
+    <li><code>RETURNING ... BULK COLLECT INTO</code> recupera de una sola vez los valores de las filas afectadas por un DML.</li>
+  </ul>
+  <figure class="code">
+    <figcaption>Código 4.4 · Borrar y recuperar los identificadores eliminados</figcaption>
+<pre><code data-sql>DECLARE
+    TYPE ty_nt_id IS TABLE OF movimiento_stock.id_movimiento%TYPE;
+    vt_borrados ty_nt_id;
+BEGIN
+    DELETE FROM movimiento_stock
+     WHERE fecha &lt; ADD_MONTHS(SYSDATE, -24)
+    RETURNING id_movimiento BULK COLLECT INTO vt_borrados;
+
+    DBMS_OUTPUT.PUT_LINE('Eliminados: ' || vt_borrados.COUNT);
+    COMMIT;
+END;
+/</code></pre>
+  </figure>
+
+  <h3>4.6 Cuándo usar cada técnica</h3>
+  <table class="tbl">
+    <thead><tr><th>Situación</th><th>Técnica</th><th>Razón</th></tr></thead>
+    <tbody>
+      <tr><td>La lógica cabe en SQL</td><td>Una sola sentencia (<code>UPDATE</code>, <code>MERGE</code>, <code>INSERT ... SELECT</code>)</td><td>No hay cambios de contexto y el optimizador ve todo el trabajo</td></tr>
+      <tr><td>Hay lógica por fila y mucho volumen</td><td><code>BULK COLLECT ... LIMIT</code> + <code>FORALL</code></td><td>Se cruza la frontera una vez por lote</td></tr>
+      <tr><td>Solo se lee, con volumen moderado</td><td>Bucle <code>FOR</code> sobre cursor</td><td>El compilador ya lo optimiza (100 filas por vez, nivel 2 o mayor)</td></tr>
+      <tr><td>Las filas pueden fallar de forma independiente</td><td><code>FORALL ... SAVE EXCEPTIONS</code> o <code>LOG ERRORS</code></td><td>Un fallo no detiene al resto</td></tr>
+      <tr><td>Se necesita el resultado de una modificación</td><td><code>RETURNING ... BULK COLLECT</code></td><td>Evita hacer otra consulta después</td></tr>
+    </tbody>
+  </table>
+
+  <h3>4.7 Cómo medir la diferencia</h3>
+  <p>
+    En vez de citar cifras de otras fuentes, que dependen del equipo y de la versión, dejo este script para medir la diferencia en el
+    computador donde se ejecute. <code>DBMS_UTILITY.GET_TIME</code> devuelve centésimas de segundo.
+  </p>
+  <figure class="code">
+    <figcaption>Código 4.5 · Comparación fila por fila frente a <code>FORALL</code></figcaption>
+<pre><code data-sql>-- Datos de prueba: 100.000 productos
+INSERT INTO producto (id_producto, codigo, nombre, precio_unitario, costo_unitario, stock)
+SELECT level, 'COD-' || level, 'Producto ' || level, 1000 + level, 500, 10
+  FROM dual CONNECT BY level &lt;= 100000;
+COMMIT;
+
+DECLARE
+    TYPE ty_nt_id IS TABLE OF producto.id_producto%TYPE;
+    vt_id ty_nt_id;
+    vn_t0 NUMBER;
+BEGIN
+    SELECT id_producto BULK COLLECT INTO vt_id FROM producto;
+
+    -- 1) Fila por fila
+    vn_t0 := DBMS_UTILITY.GET_TIME;
+    FOR vn_i IN 1 .. vt_id.COUNT LOOP
+        UPDATE producto SET stock = stock + 1 WHERE id_producto = vt_id(vn_i);
+    END LOOP;
+    DBMS_OUTPUT.PUT_LINE('Fila por fila: ' || (DBMS_UTILITY.GET_TIME - vn_t0) / 100 || ' s');
+    ROLLBACK;
+
+    -- 2) FORALL
+    vn_t0 := DBMS_UTILITY.GET_TIME;
+    FORALL vn_i IN 1 .. vt_id.COUNT
+        UPDATE producto SET stock = stock + 1 WHERE id_producto = vt_id(vn_i);
+    DBMS_OUTPUT.PUT_LINE('FORALL:        ' || (DBMS_UTILITY.GET_TIME - vn_t0) / 100 || ' s');
+    ROLLBACK;
+
+    -- 3) Una sola sentencia
+    vn_t0 := DBMS_UTILITY.GET_TIME;
+    UPDATE producto SET stock = stock + 1;
+    DBMS_OUTPUT.PUT_LINE('Un UPDATE:     ' || (DBMS_UTILITY.GET_TIME - vn_t0) / 100 || ' s');
+    ROLLBACK;
+END;
+/</code></pre>
+  </figure>
+  <p>
+    Conviene correr cada variante varias veces y descartar la primera medición, porque la caché está fría. Lo esperable es que el orden,
+    de menor a mayor tiempo, sea un solo <code>UPDATE</code>, luego <code>FORALL</code> y al final fila por fila. Cuánto cambia el tiempo
+    entre una y otra es justamente lo que debe anotar quien ejecute la prueba.
+  </p>
+</section>
+
+<section id="dinamico">
+  <h2>5. SQL dinámico y prevención de inyección</h2>
+
+  <h3>5.1 Cuándo hace falta</h3>
+  <p>
+    El SQL dinámico arma y ejecuta sentencias mientras el programa corre. Se necesita cuando el texto completo de la sentencia no se
+    conoce al compilar, por ejemplo en consultas ad hoc, o cuando hay que ejecutar DDL desde PL/SQL, que no lo permite de forma
+    estática <a class="ref" href="#ref-4">[4]</a>. Oracle ofrece dos mecanismos <a class="ref" href="#ref-4">[4]</a>:
+  </p>
+  <ul>
+    <li>SQL dinámico nativo, con <code>EXECUTE IMMEDIATE</code> y <code>OPEN ... FOR</code>. Es más fácil de leer y escribir y, según la documentación, más rápido, sobre todo cuando el compilador puede optimizarlo.</li>
+    <li>El paquete <code>DBMS_SQL</code>, una API para construir, ejecutar y describir sentencias. Es obligatorio cuando no se conoce al compilar el número o el tipo de las columnas o de las variables de enlace, o cuando se quiere devolver resultados de forma implícita sin un parámetro <code>OUT REF CURSOR</code>.</li>
+  </ul>
+  <p>
+    Se puede pasar de uno a otro con <code>DBMS_SQL.TO_REFCURSOR</code> y <code>DBMS_SQL.TO_CURSOR_NUMBER</code>
+    <a class="ref" href="#ref-4">[4]</a>. En la práctica se usa el nativo por defecto y <code>DBMS_SQL</code> solo cuando el nativo no alcanza.
+  </p>
+
+  <h3>5.2 Sintaxis básica</h3>
+  <figure class="code">
+    <figcaption>Código 5.1 · <code>EXECUTE IMMEDIATE</code> con enlace, <code>INTO</code> y <code>RETURNING</code></figcaption>
+<pre><code data-sql>DECLARE
+    vv_nombre producto.nombre%TYPE;
+    vn_precio producto.precio_unitario%TYPE;
+BEGIN
+    -- Consulta de una fila con variable de enlace
+    EXECUTE IMMEDIATE
+        'SELECT nombre FROM producto WHERE id_producto = :id'
+        INTO vv_nombre
+        USING 1001;
+
+    -- DML con RETURNING INTO
+    EXECUTE IMMEDIATE
+        'UPDATE producto SET precio_unitario = precio_unitario * 1.1
+          WHERE id_producto = :id
+          RETURNING precio_unitario INTO :nuevo'
+        USING 1001
+        RETURNING INTO vn_precio;
+
+    DBMS_OUTPUT.PUT_LINE(vv_nombre || ' ahora cuesta ' || vn_precio);
+END;
+/</code></pre>
+  </figure>
+  <figure class="code">
+    <figcaption>Código 5.2 · Consulta dinámica con cursor de referencia</figcaption>
+<pre><code data-sql>DECLARE
+    TYPE ty_cur_ref IS REF CURSOR;
+    cur_dinamico ty_cur_ref;
+    vv_nombre    producto.nombre%TYPE;
+BEGIN
+    OPEN cur_dinamico FOR
+        'SELECT nombre FROM producto WHERE stock &lt; :minimo ORDER BY nombre'
+        USING 10;
+    LOOP
+        FETCH cur_dinamico INTO vv_nombre;
+        EXIT WHEN cur_dinamico%NOTFOUND;
+        DBMS_OUTPUT.PUT_LINE(vv_nombre);
+    END LOOP;
+    CLOSE cur_dinamico;
+END;
+/</code></pre>
+  </figure>
+  <p>En las sentencias SQL dinámicas, los marcadores de posición (<code>:id</code>, <code>:nuevo</code>) se asocian con la lista <code>USING</code> por posición, no por nombre.</p>
+
+  <h3>5.3 Inyección SQL</h3>
+  <p>
+    La inyección ocurre cuando datos que escribe el usuario se concatenan en el texto de la sentencia y terminan interpretándose como
+    código. La documentación de Oracle trata el tema en el capítulo de SQL dinámico y propone dos defensas: variables de enlace y
+    validación <a class="ref" href="#ref-4">[4]</a>.
+  </p>
+  <figure class="code">
+    <figcaption>Código 5.3 · Vulnerable frente a seguro</figcaption>
+<pre><code data-sql>-- VULNERABLE: el valor se concatena en el texto
+CREATE OR REPLACE FUNCTION fn_buscar_inseguro (param_nombre IN VARCHAR2)
+    RETURN NUMBER IS
+    vn_total NUMBER;
+BEGIN
+    EXECUTE IMMEDIATE
+        'SELECT COUNT(*) FROM producto WHERE nombre = ''' || param_nombre || ''''
+        INTO vn_total;
+    RETURN vn_total;
+END;
+/
+-- Con param_nombre = ' OR ''1''=''1  la condición se vuelve verdadera para todas las filas.
+
+-- SEGURO: el valor viaja como variable de enlace
+CREATE OR REPLACE FUNCTION fn_buscar_seguro (param_nombre IN VARCHAR2)
+    RETURN NUMBER IS
+    vn_total NUMBER;
+BEGIN
+    EXECUTE IMMEDIATE
+        'SELECT COUNT(*) FROM producto WHERE nombre = :nombre'
+        INTO vn_total
+        USING param_nombre;
+    RETURN vn_total;
+END;
+/</code></pre>
+  </figure>
+  <p>
+    Con variable de enlace el texto de la sentencia siempre es el mismo y el valor nunca se interpreta como SQL. Además el motor
+    reutiliza el plan que ya analizó, lo que reduce el trabajo de análisis (<em>parse</em>) en el servidor.
+  </p>
+
+  <h3>5.4 Lo que no se puede enlazar: <code>DBMS_ASSERT</code></h3>
+  <p>
+    Los identificadores, como nombres de tablas o columnas, no aceptan variables de enlace. Para esos casos se valida la entrada con
+    <code>DBMS_ASSERT</code>, que lanza una excepción si el valor no es lo que se esperaba:
+  </p>
+  <table class="tbl">
+    <thead><tr><th>Función</th><th>Qué hace</th><th>Error si falla</th></tr></thead>
+    <tbody>
+      <tr><td><code>ENQUOTE_LITERAL</code></td><td>Envuelve en comillas simples y escapa las internas</td><td>ORA-06502 si ya tiene comillas sin escapar</td></tr>
+      <tr><td><code>ENQUOTE_NAME</code></td><td>Envuelve un identificador en comillas dobles (opcionalmente en mayúsculas)</td><td>ORA-44003</td></tr>
+      <tr><td><code>SIMPLE_SQL_NAME</code></td><td>Verifica que sea un nombre simple, sin calificar</td><td>ORA-44003</td></tr>
+      <tr><td><code>QUALIFIED_SQL_NAME</code></td><td>Verifica que sea un nombre que puede ir calificado (<code>esquema.objeto</code>)</td><td>ORA-44004</td></tr>
+      <tr><td><code>SCHEMA_NAME</code></td><td>Verifica que el esquema exista</td><td>ORA-44001</td></tr>
+      <tr><td><code>SQL_OBJECT_NAME</code></td><td>Verifica que el objeto exista y sea accesible</td><td>ORA-44002</td></tr>
+    </tbody>
+  </table>
+  <div class="callout callout--note">
+    <p class="callout__title">Sobre los códigos de error</p>
+    <p>
+      Los códigos de la tabla salen de las excepciones documentadas de <code>DBMS_ASSERT</code>. Si la aplicación va a depender de
+      ellos, conviene confirmarlos en la documentación de la versión instalada y capturar la excepción en vez de comparar el número.
+    </p>
+  </div>
+  <figure class="code">
+    <figcaption>Código 5.4 · Consulta sobre una tabla elegida dinámicamente</figcaption>
+<pre><code data-sql>CREATE OR REPLACE PROCEDURE sp_contar_filas (
+    param_tabla IN  VARCHAR2,
+    param_total OUT NUMBER
+) IS
+    vv_sql VARCHAR2(200);
+BEGIN
+    -- SQL_OBJECT_NAME rechaza nombres inválidos o inexistentes
+    vv_sql := 'SELECT COUNT(*) FROM ' || DBMS_ASSERT.SQL_OBJECT_NAME(param_tabla);
+    EXECUTE IMMEDIATE vv_sql INTO param_total;
+END sp_contar_filas;
+/</code></pre>
+  </figure>
+  <div class="callout callout--tip">
+    <p class="callout__title">Resumen</p>
+    <p>Los valores se enlazan. Los identificadores se validan con <code>DBMS_ASSERT</code> o se comparan contra una lista fija escrita en el código. No se concatena texto del usuario sin alguna de las dos protecciones.</p>
+  </div>
+</section>
+
+<section id="funciones">
+  <h2>6. Funciones invocadas desde SQL</h2>
+  <p>
+    Cuando una sentencia SQL llama a una función PL/SQL, hay un cambio de contexto por cada fila en la que se evalúa. Un
+    <code>SELECT</code> sobre un millón de filas que llame a una función serían un millón de cruces. Oracle ofrece varios mecanismos para
+    reducir o evitar ese costo, y en esta sección los comparo.
+  </p>
+
+  <h3>6.1 <code>DETERMINISTIC</code> y <code>PRAGMA UDF</code></h3>
+  <p>
+    <code>DETERMINISTIC</code> es una promesa del programador: con los mismos argumentos la función siempre devuelve lo mismo y no depende
+    de datos de tablas ni de la fecha. Le permite al motor reutilizar resultados dentro de una misma sentencia y es necesario para
+    usar la función en un índice basado en funciones. Oracle no comprueba la promesa, así que si es falsa los resultados serán
+    inconsistentes.
+  </p>
+  <p>
+    <code>PRAGMA UDF</code>, disponible desde Oracle 12c, indica que la función se va a usar sobre todo desde SQL y deja que el compilador
+    la genere de modo que llamarla desde una sentencia SQL cueste menos. Solo tiene sentido en funciones que de verdad se llaman desde SQL.
+  </p>
+  <figure class="code">
+    <figcaption>Código 6.1 · Función determinista pensada para SQL</figcaption>
+<pre><code data-sql>CREATE OR REPLACE FUNCTION fn_margen_pct (
+    param_precio IN NUMBER,
+    param_costo  IN NUMBER
+) RETURN NUMBER
+    DETERMINISTIC
+IS
+    PRAGMA UDF;
+BEGIN
+    IF param_costo IS NULL OR param_costo = 0 THEN
+        RETURN NULL;
+    END IF;
+    RETURN ROUND((param_precio - param_costo) / param_costo * 100, 2);
+END fn_margen_pct;
+/
+
+SELECT nombre, fn_margen_pct(precio_unitario, costo_unitario) AS margen_pct
+  FROM producto
+ ORDER BY margen_pct DESC NULLS LAST;</code></pre>
+  </figure>
+
+  <h3>6.2 La cláusula <code>WITH FUNCTION</code></h3>
+  <p>
+    Desde Oracle 12c una consulta puede declarar funciones locales en su cláusula <code>WITH</code>. La función existe solo mientras dura
+    la sentencia, no se crea en el esquema y tiene menos sobrecarga que una función almacenada llamada desde SQL. Sirve para lógica
+    auxiliar de un único informe. En algunos contextos (por ejemplo DML o PL/SQL estático) puede hacer falta el hint
+    <code>WITH_PLSQL</code>, así que conviene revisar la documentación de la versión que se use.
+  </p>
+  <figure class="code">
+    <figcaption>Código 6.2 · Función local a la consulta</figcaption>
+<pre><code data-sql>WITH
+    FUNCTION fn_categoria_precio (param_precio NUMBER) RETURN VARCHAR2 IS
+    BEGIN
+        RETURN CASE
+                   WHEN param_precio &gt;= 200000 THEN 'ALTO'
+                   WHEN param_precio &gt;= 50000  THEN 'MEDIO'
+                   ELSE 'BAJO'
+               END;
+    END;
+SELECT nombre, precio_unitario, fn_categoria_precio(precio_unitario) AS rango
+  FROM producto
+/</code></pre>
+  </figure>
+
+  <h3>6.3 Caché de resultados: <code>RESULT_CACHE</code></h3>
+  <p>
+    Una función marcada con <code>RESULT_CACHE</code> guarda en memoria compartida los resultados para cada combinación de argumentos.
+    Si se la vuelve a llamar con los mismos argumentos, devuelve el valor guardado sin ejecutar el cuerpo. Oracle invalida la entrada
+    automáticamente cuando cambian los datos de las tablas de las que depende la función. En 21c el mecanismo mejoró con control de
+    sentencias y objetos excluidos, historial de funciones y volcado a disco, y el umbral
+    <code>RESULT_CACHE_EXECUTION_THRESHOLD</code> decide qué se guarda <a class="ref" href="#ref-8">[8]</a>.
+  </p>
+  <figure class="code">
+    <figcaption>Código 6.3 · Caché para consultas de referencia</figcaption>
+<pre><code data-sql>CREATE OR REPLACE FUNCTION fn_nombre_producto (
+    param_id_producto IN NUMBER
+) RETURN VARCHAR2
+    RESULT_CACHE
+IS
+    vv_nombre producto.nombre%TYPE;
+BEGIN
+    SELECT nombre INTO vv_nombre
+      FROM producto
+     WHERE id_producto = param_id_producto;
+    RETURN vv_nombre;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN NULL;
+END fn_nombre_producto;
+/
+
+-- Inspección y mantenimiento de la caché
+SET SERVEROUTPUT ON
+EXEC DBMS_RESULT_CACHE.MEMORY_REPORT;
+EXEC DBMS_RESULT_CACHE.FLUSH;</code></pre>
+  </figure>
+  <table class="tbl">
+    <thead><tr><th>Conviene</th><th>No conviene</th></tr></thead>
+    <tbody>
+      <tr><td>Datos de referencia que casi no cambian (catálogos, parámetros)</td><td>Tablas que se modifican todo el tiempo, porque la caché se invalida constantemente</td></tr>
+      <tr><td>Funciones costosas llamadas muchas veces con los mismos argumentos</td><td>Funciones que dependen de <code>SYSDATE</code>, del usuario o del contexto de la sesión</td></tr>
+      <tr><td>Pocas combinaciones distintas de argumentos</td><td>Argumentos casi únicos en cada llamada, que llenan la memoria sin reutilizarse</td></tr>
+    </tbody>
+  </table>
+
+  <h3>6.4 Funciones de tabla en tubería (<em>pipelined</em>)</h3>
+  <p>
+    Una función de tabla en tubería devuelve las filas a medida que las produce, con <code>PIPE ROW</code>, en lugar de armar toda la
+    colección en memoria. Se consulta con el operador <code>TABLE</code> como si fuera una tabla y es útil para transformar datos o
+    encadenar etapas sin guardar resultados intermedios.
+  </p>
+  <figure class="code">
+    <figcaption>Código 6.4 · Función en tubería consultable desde SQL</figcaption>
+<pre><code data-sql>CREATE OR REPLACE TYPE ty_fila_stock AS OBJECT (
+    id_producto NUMBER,
+    nombre      VARCHAR2(100),
+    stock       NUMBER
+);
+/
+CREATE OR REPLACE TYPE ty_tab_stock AS TABLE OF ty_fila_stock;
+/
+CREATE OR REPLACE FUNCTION fn_stock_bajo (
+    param_minimo IN NUMBER
+) RETURN ty_tab_stock PIPELINED IS
+BEGIN
+    FOR r_p IN (SELECT id_producto, nombre, stock
+                  FROM producto
+                 WHERE stock &lt; param_minimo) LOOP
+        PIPE ROW (ty_fila_stock(r_p.id_producto, r_p.nombre, r_p.stock));
+    END LOOP;
+    RETURN;
+END fn_stock_bajo;
+/
+
+SELECT * FROM TABLE(fn_stock_bajo(10));</code></pre>
+  </figure>
+
+  <h3>6.5 Macros SQL</h3>
+  <p>
+    Una macro SQL es una función que en vez de devolver un valor devuelve un fragmento de texto SQL, que el motor incorpora a la
+    sentencia que la llama. Como la lógica ya es SQL, no hay cambio de contexto al ejecutar. Las macros de tabla, que se usan en la
+    cláusula <code>FROM</code> como una vista con parámetros, se admiten desde la actualización 19.7
+    <a class="ref" href="#ref-9">[9]</a>. Las macros SQL en general, incluidas las escalares, son una novedad de 21c
+    <a class="ref" href="#ref-8">[8]</a>.
+  </p>
+  <figure class="code">
+    <figcaption>Código 6.5 · Macro de tabla (19.7 o superior)</figcaption>
+<pre><code data-sql>CREATE OR REPLACE FUNCTION fn_productos_bajo_minimo (
+    param_minimo IN NUMBER
+) RETURN VARCHAR2 SQL_MACRO(TABLE) IS
+BEGIN
+    RETURN 'SELECT id_producto, nombre, stock
+              FROM producto
+             WHERE stock &lt; param_minimo';
+END fn_productos_bajo_minimo;
+/
+
+SELECT * FROM fn_productos_bajo_minimo(10);</code></pre>
+  </figure>
+
+  <h3>6.6 Comparación</h3>
+  <table class="tbl">
+    <thead><tr><th>Mecanismo</th><th>Costo por fila</th><th>Dónde vive</th><th>Cuándo usarlo</th></tr></thead>
+    <tbody>
+      <tr><td>Función almacenada</td><td>Un cambio de contexto</td><td>Esquema</td><td>Lógica compartida que se llama poco</td></tr>
+      <tr><td><code>PRAGMA UDF</code></td><td>Menor que la anterior</td><td>Esquema</td><td>La función se llama casi solo desde SQL</td></tr>
+      <tr><td><code>WITH FUNCTION</code></td><td>Menor</td><td>Solo la sentencia</td><td>Lógica auxiliar de un informe</td></tr>
+      <tr><td><code>RESULT_CACHE</code></td><td>Ninguno cuando acierta la caché</td><td>Esquema y memoria compartida</td><td>Datos de referencia estables</td></tr>
+      <tr><td>Macro SQL</td><td>Ninguno al ejecutar</td><td>Esquema</td><td>La lógica se puede expresar como SQL</td></tr>
+      <tr><td>Expresión SQL directa</td><td>Ninguno</td><td>La sentencia</td><td>Siempre que sea posible, porque es lo más simple</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="transacciones">
+  <h2>7. Transacciones y concurrencia en PL/SQL</h2>
+
+  <h3>7.1 Atomicidad en tres niveles</h3>
+  <p>Oracle garantiza atomicidad por sentencia: si una sentencia falla, se deshace completa y la transacción sigue. Encima de eso PL/SQL ofrece:</p>
+  <ul>
+    <li><code>COMMIT</code> y <code>ROLLBACK</code> para toda la transacción;</li>
+    <li><code>SAVEPOINT</code> y <code>ROLLBACK TO</code> para deshacer solo hasta un punto marcado;</li>
+    <li>la transacción autónoma, que corre aparte de la transacción que la llama.</li>
+  </ul>
+  <p>Un patrón común en los procedimientos de negocio es marcar un punto al inicio y volver a él si algo falla, dejando que quien llamó decida qué hacer con la transacción exterior:</p>
+  <figure class="code">
+    <figcaption>Código 7.1 · Operación todo o nada con <code>SAVEPOINT</code></figcaption>
+<pre><code data-sql>CREATE OR REPLACE PROCEDURE sp_transferir_stock (
+    param_origen  IN producto.id_producto%TYPE,
+    param_destino IN producto.id_producto%TYPE,
+    param_cant    IN NUMBER
+) IS
+BEGIN
+    SAVEPOINT sp_inicio_transferencia;
+
+    UPDATE producto SET stock = stock - param_cant WHERE id_producto = param_origen;
+    UPDATE producto SET stock = stock + param_cant WHERE id_producto = param_destino;
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK TO sp_inicio_transferencia;
+        RAISE;   -- se informa al llamador; nunca se silencia
+END sp_transferir_stock;
+/</code></pre>
+  </figure>
+
+  <h3>7.2 Transacciones autónomas</h3>
+  <p>
+    <code>PRAGMA AUTONOMOUS_TRANSACTION</code> hace que un subprograma corra en una transacción propia. Puede confirmar o revertir sin
+    afectar a la transacción que lo llamó, y al revés. El uso más legítimo es el registro de errores, que tiene que quedar guardado
+    aunque la transacción principal se revierta.
+  </p>
+  <figure class="code">
+    <figcaption>Código 7.2 · Registro de errores que sobrevive al <code>ROLLBACK</code></figcaption>
+<pre><code data-sql>CREATE OR REPLACE PROCEDURE sp_registrar_error (
+    param_modulo  IN VARCHAR2,
+    param_codigo  IN NUMBER,
+    param_mensaje IN VARCHAR2,
+    param_traza   IN CLOB DEFAULT NULL
+) IS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+BEGIN
+    INSERT INTO log_errores (modulo, codigo, mensaje, traza)
+    VALUES (param_modulo, param_codigo, SUBSTR(param_mensaje, 1, 4000), param_traza);
+    COMMIT;   -- obligatorio: una autónoma debe terminar su transacción
+END sp_registrar_error;
+/</code></pre>
+  </figure>
+  <div class="callout callout--warn">
+    <p class="callout__title">Precauciones</p>
+    <ul>
+      <li>La transacción autónoma no ve los cambios sin confirmar de la transacción principal.</li>
+      <li>Si termina con cambios pendientes, Oracle lanza <code>ORA-06519</code>, así que debe hacer <code>COMMIT</code> o <code>ROLLBACK</code> antes de retornar.</li>
+      <li>Usarla para saltarse un bloqueo o para forzar un orden de confirmación es señal de mal diseño. Conviene dejarla para auditoría y registro.</li>
+    </ul>
+  </div>
+
+  <h3>7.3 Bloqueo explícito de filas</h3>
+  <p>
+    La lectura consistente de Oracle no bloquea: dos sesiones pueden leer el mismo saldo y escribir cada una su resultado, y así se pierde
+    una actualización. Esto fue justo lo que vimos en el taller de Banco Andino, donde dos retiros sobre la misma cuenta dejaron 800.000
+    en lugar de 500.000. Cuando una decisión depende de un valor que otra sesión puede estar cambiando, se bloquea la fila con
+    <code>SELECT ... FOR UPDATE</code>, como hace <code>sp_registrar_salida</code> en el Código 2.1. Frente a una fila ya bloqueada hay cuatro
+    comportamientos posibles:
+  </p>
+  <table class="tbl">
+    <thead><tr><th>Cláusula</th><th>Comportamiento</th><th>Caso de uso</th></tr></thead>
+    <tbody>
+      <tr><td><code>FOR UPDATE</code></td><td>Espera indefinidamente</td><td>Transacciones cortas con poca contención</td></tr>
+      <tr><td><code>FOR UPDATE NOWAIT</code></td><td>Falla de inmediato con <code>ORA-00054</code></td><td>Pantallas de usuario que avisan «registro en uso»</td></tr>
+      <tr><td><code>FOR UPDATE WAIT n</code></td><td>Espera hasta <em>n</em> segundos</td><td>Reintento con tiempo límite</td></tr>
+      <tr><td><code>FOR UPDATE SKIP LOCKED</code></td><td>Omite las filas bloqueadas</td><td>Colas de trabajo con varios procesadores</td></tr>
+    </tbody>
+  </table>
+  <figure class="code">
+    <figcaption>Código 7.3 · Procesadores concurrentes de una cola con <code>SKIP LOCKED</code></figcaption>
+<pre><code data-sql>CREATE OR REPLACE PROCEDURE sp_procesar_lote (
+    param_tamano IN NUMBER
+) IS
+    CURSOR cur_pendientes IS
+        SELECT id_tarea
+          FROM tarea_cola
+         WHERE estado = 'PENDIENTE'
+         ORDER BY id_tarea
+           FOR UPDATE SKIP LOCKED;
+
+    vn_procesadas NUMBER := 0;
+BEGIN
+    FOR r_t IN cur_pendientes LOOP
+        UPDATE tarea_cola
+           SET estado = 'PROCESADA'
+         WHERE CURRENT OF cur_pendientes;
+
+        vn_procesadas := vn_procesadas + 1;
+        EXIT WHEN vn_procesadas &gt;= param_tamano;
+    END LOOP;
+
+    COMMIT;   -- después del bucle: confirmar dentro de un cursor FOR UPDATE
+              -- libera los bloqueos y provoca ORA-01002 en el siguiente FETCH
+END sp_procesar_lote;
+/</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Limitar el lote desde PL/SQL</p>
+    <p>
+      Si se limita el lote con <code>ROWNUM</code> dentro de la misma consulta con <code>SKIP LOCKED</code>, puede devolver menos filas de las
+      esperadas, porque <code>ROWNUM</code> se evalúa antes de que se descarten las filas bloqueadas. Con un contador en el bucle, como en el
+      código anterior, el reparto entre procesadores es más predecible.
+    </p>
+  </div>
+
+  <h3>7.4 Interbloqueos y orden de bloqueo</h3>
+  <p>
+    Un interbloqueo (<code>ORA-00060</code>) aparece cuando dos transacciones se esperan mutuamente. Oracle detecta el ciclo y aborta una
+    sentencia, no la transacción completa, así que la sesión afectada queda con trabajo a medias y tiene que hacer <code>ROLLBACK</code> de
+    forma explícita. Si se asume que Oracle «ya deshizo todo», se puede terminar haciendo <code>COMMIT</code> de una transacción incompleta.
+  </p>
+  <p>La forma de prevenirlo es una regla de diseño: bloquear siempre los recursos compartidos en el mismo orden, sin importar el sentido de la operación de negocio.</p>
+  <figure class="code">
+    <figcaption>Código 7.4 · Orden fijo de bloqueo en una transferencia entre dos filas</figcaption>
+<pre><code data-sql>-- Dentro de sp_transferir_stock: se bloquean ambas filas por id ascendente,
+-- sin importar cuál es origen y cuál destino
+SELECT id_producto
+  FROM producto
+ WHERE id_producto IN (param_origen, param_destino)
+ ORDER BY id_producto
+   FOR UPDATE;
+
+-- Ahora sí, los UPDATE en cualquier orden: ya no puede formarse el ciclo
+UPDATE producto SET stock = stock - param_cant WHERE id_producto = param_origen;
+UPDATE producto SET stock = stock + param_cant WHERE id_producto = param_destino;</code></pre>
+  </figure>
+
+  <h3>7.5 Concurrencia optimista</h3>
+  <p>
+    Cuando los conflictos son raros y hay muchos lectores, bloquear penaliza a todos para evitar un problema que casi no ocurre. La
+    alternativa es una columna de versión: se lee la versión, se modifica con <code>WHERE version = :leida</code> y se incrementa. Si
+    <code>SQL%ROWCOUNT</code> da 0, alguien más cambió la fila, así que se vuelve a leer y se reintenta. Lo que no se debe hacer es suponer que
+    todo salió bien porque no hubo error: para el motor, un <code>UPDATE</code> que afecta cero filas es un resultado válido.
+  </p>
+  <figure class="code">
+    <figcaption>Código 7.5 · Actualización con control de versión</figcaption>
+<pre><code data-sql>-- Dentro de un procedimiento; supone una columna version NUMBER DEFAULT 0 en producto
+BEGIN
+    UPDATE producto
+       SET precio_unitario = param_nuevo_precio,
+           version         = version + 1
+     WHERE id_producto = param_id_producto
+       AND version     = param_version_leida;
+
+    IF SQL%ROWCOUNT = 0 THEN
+        RAISE_APPLICATION_ERROR(-20130,
+            'El registro cambió desde que fue leído; vuelva a consultarlo');
+    END IF;
+END;</code></pre>
+  </figure>
+  <table class="tbl">
+    <thead><tr><th>Estrategia</th><th>Cuándo usarla</th><th>Costo</th></tr></thead>
+    <tbody>
+      <tr><td>Pesimista (<code>FOR UPDATE</code>)</td><td>El choque es poco frecuente pero costoso, por ejemplo una transferencia puntual de alto valor</td><td>Las demás sesiones esperan</td></tr>
+      <tr><td>Optimista (versión)</td><td>El recurso se lee mucho y se escribe poco</td><td>La aplicación debe reintentar</td></tr>
+      <tr><td><code>SKIP LOCKED</code></td><td>Reparto de trabajo entre varios procesadores</td><td>El orden de procesamiento deja de ser estricto</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="triggers">
+  <h2>8. Disparadores (triggers) avanzados</h2>
+
+  <h3>8.1 Puntos de disparo y orden de ejecución</h3>
+  <p>Un trigger de tabla puede ejecutarse en cuatro momentos respecto de una sentencia DML:</p>
+  <ol>
+    <li><code>BEFORE STATEMENT</code>: una vez, antes de que la sentencia toque filas.</li>
+    <li><code>BEFORE EACH ROW</code>: por cada fila, antes de modificarla. Aquí se pueden asignar valores a <code>:NEW</code>.</li>
+    <li><code>AFTER EACH ROW</code>: por cada fila, después de modificarla.</li>
+    <li><code>AFTER STATEMENT</code>: una vez, cuando la sentencia termina.</li>
+  </ol>
+  <p>
+    Si una tabla tiene varios triggers del mismo tipo, el orden entre ellos no está garantizado a menos que se use la cláusula
+    <code>FOLLOWS</code>. Depender de un orden implícito es una causa típica de errores que aparecen y desaparecen.
+  </p>
+
+  <h3>8.2 El error de tabla mutante</h3>
+  <p>
+    Un trigger de fila no puede consultar ni modificar la tabla sobre la que se está ejecutando la sentencia. Oracle lo impide con
+    <code>ORA-04091</code> (tabla mutante), porque en ese momento la tabla está en un estado intermedio. La solución es el trigger
+    compuesto (<code>COMPOUND TRIGGER</code>), que junta en una sola unidad los cuatro puntos de disparo y comparte variables entre
+    ellos. Se recolectan los datos fila por fila y se procesan al final, en <code>AFTER STATEMENT</code>, cuando la tabla ya no está mutando.
+  </p>
+  <figure class="code">
+    <figcaption>Código 8.1 · Regla de negocio que consulta la propia tabla, sin error de tabla mutante</figcaption>
+<pre><code data-sql>CREATE OR REPLACE TRIGGER trg_movimiento_limite
+    FOR INSERT ON movimiento_stock
+    COMPOUND TRIGGER
+
+    TYPE ty_nt_id IS TABLE OF NUMBER;
+    vt_ids ty_nt_id := ty_nt_id();     -- estado compartido entre los puntos de disparo
+
+    AFTER EACH ROW IS
+    BEGIN
+        vt_ids.EXTEND;
+        vt_ids(vt_ids.COUNT) := :NEW.id_producto;   -- solo se recolecta
+    END AFTER EACH ROW;
+
+    AFTER STATEMENT IS
+        vn_total NUMBER;
+    BEGIN
+        FOR vn_i IN 1 .. vt_ids.COUNT LOOP
+            SELECT COUNT(*) INTO vn_total
+              FROM movimiento_stock
+             WHERE id_producto = vt_ids(vn_i)
+               AND TRUNC(fecha) = TRUNC(SYSDATE);
+
+            IF vn_total &gt; 100 THEN
+                RAISE_APPLICATION_ERROR(-20120,
+                    'El producto ' || vt_ids(vn_i) || ' supera 100 movimientos diarios');
+            END IF;
+        END LOOP;
+    END AFTER STATEMENT;
+
+END trg_movimiento_limite;
+/</code></pre>
+  </figure>
+
+  <h3>8.3 Triggers <code>INSTEAD OF</code></h3>
+  <p>
+    Una vista que combina varias tablas normalmente no admite DML. Un trigger <code>INSTEAD OF</code> intercepta la operación sobre la
+    vista y la convierte en modificaciones sobre las tablas base. Así se puede dejar la vista como interfaz de escritura estable aunque
+    el esquema interno cambie.
+  </p>
+
+  <h3>8.4 Criterios de diseño</h3>
+  <table class="tbl">
+    <thead><tr><th>Conviene</th><th>Conviene evitar</th></tr></thead>
+    <tbody>
+      <tr><td>Usar triggers para reglas de integridad que no se pueden declarar como restricción (auditoría, valores derivados)</td><td>Poner en un trigger mucha lógica de negocio, porque es invisible para quien lee el procedimiento y difícil de probar</td></tr>
+      <tr><td>Mantener el trigger corto y delegar el trabajo en un procedimiento de un paquete</td><td>Que un trigger dispare otro que modifica la misma tabla, porque las cascadas son difíciles de seguir</td></tr>
+      <tr><td>Asignar valores en <code>BEFORE EACH ROW</code> (<code>:NEW.columna := ...</code>)</td><td><code>COMMIT</code> dentro de un trigger. La transacción es de quien ejecutó el DML y solo se permite con una transacción autónoma</td></tr>
+      <tr><td>Recolectar en <code>AFTER EACH ROW</code> y procesar en <code>AFTER STATEMENT</code></td><td>Consultar la propia tabla desde un trigger de fila</td></tr>
+      <tr><td>Declarar el orden con <code>FOLLOWS</code> cuando importa</td><td>Suponer un orden de ejecución entre triggers</td></tr>
+    </tbody>
+  </table>
+  <p>
+    Un trigger de fila se ejecuta por cada fila, así que en una carga de un millón de filas sus costos se multiplican. Antes de una carga
+    así hay que evaluar si el trigger se puede deshabilitar un momento (<code>ALTER TRIGGER ... DISABLE</code>) y reemplazarlo por una
+    validación equivalente al final.
+  </p>
+</section>
+
+<section id="errores">
+  <h2>9. Manejo de errores y diagnóstico</h2>
+
+  <h3>9.1 Cómo funciona una excepción</h3>
+  <p>
+    Cuando ocurre un error en el cuerpo de un bloque, el control salta a la sección <code>EXCEPTION</code>. Si no hay un manejador que
+    coincida, la excepción pasa al bloque que contiene al actual y al final llega a quien llamó. Las excepciones pueden ser de tres tipos:
+  </p>
+  <ul>
+    <li>Predefinidas, como <code>NO_DATA_FOUND</code>, <code>TOO_MANY_ROWS</code>, <code>DUP_VAL_ON_INDEX</code>, <code>ZERO_DIVIDE</code> o <code>VALUE_ERROR</code>.</li>
+    <li>Errores de Oracle sin nombre, a los que se les asigna uno con <code>PRAGMA EXCEPTION_INIT</code>, como <code>ORA-02291</code> (violación de llave foránea) o <code>ORA-24381</code>.</li>
+    <li>De aplicación, que se lanzan con <code>RAISE_APPLICATION_ERROR(código, mensaje)</code> usando códigos entre -20000 y -20999.</li>
+  </ul>
+
+  <h3>9.2 <code>WHEN OTHERS</code></h3>
+  <p>
+    Un manejador <code>WHEN OTHERS</code> captura cualquier error. Tiene sentido en el nivel más externo de una operación, para registrar
+    el error y relanzarlo, y en casi cualquier otro lugar es un defecto. Un <code>WHEN OTHERS</code> debería terminar siempre en
+    <code>RAISE</code> o en <code>RAISE_APPLICATION_ERROR</code>. El compilador ayuda con esto: la advertencia <code>PLW-06009</code> avisa cuando un
+    manejador <code>OTHERS</code> no relanza la excepción, y desde 21c se puede silenciar de forma explícita con el pragma
+    <code>SUPPRESSES_WARNING_6009</code> en una rutina de reporte propia <a class="ref" href="#ref-8">[8]</a>.
+  </p>
+  <figure class="code">
+    <figcaption>Código 9.1 · Silenciar un error frente a registrarlo y propagarlo</figcaption>
+<pre><code data-sql>-- MAL: el llamador cree que todo salió bien
+BEGIN
+    pck_inventario.sp_registrar_salida(1001, 5);
+EXCEPTION
+    WHEN OTHERS THEN
+        NULL;
+END;
+/
+
+-- BIEN: se registra, se conserva la causa y se propaga
+BEGIN
+    pck_inventario.sp_registrar_salida(1001, 5);
+EXCEPTION
+    WHEN pck_inventario.e_stock_insuficiente THEN
+        RAISE;   -- error de negocio esperado: el llamador decide qué hacer
+    WHEN OTHERS THEN
+        sp_registrar_error(
+            param_modulo  =&gt; 'pck_inventario.sp_registrar_salida',
+            param_codigo  =&gt; SQLCODE,
+            param_mensaje =&gt; SQLERRM,
+            param_traza   =&gt; DBMS_UTILITY.FORMAT_ERROR_BACKTRACE);
+        RAISE;
+END;
+/</code></pre>
+  </figure>
+
+  <h3>9.3 Dónde ocurrió el error</h3>
+  <p><code>SQLERRM</code> dice qué falló pero no dónde. Hay dos herramientas para eso:</p>
+  <ul>
+    <li><code>DBMS_UTILITY.FORMAT_ERROR_BACKTRACE</code> devuelve en texto la pila de llamadas, con la unidad y la línea donde se originó el error.</li>
+    <li>El paquete <code>UTL_CALL_STACK</code> (desde 12c) entrega esa misma información de forma estructurada: profundidad del error, número y mensaje de cada nivel, y unidad y línea de cada paso.</li>
+  </ul>
+  <figure class="code">
+    <figcaption>Código 9.2 · Traza estructurada con <code>UTL_CALL_STACK</code></figcaption>
+<pre><code data-sql>EXCEPTION
+    WHEN OTHERS THEN
+        FOR vn_i IN 1 .. UTL_CALL_STACK.ERROR_DEPTH LOOP
+            DBMS_OUTPUT.PUT_LINE(
+                'ORA-' || UTL_CALL_STACK.ERROR_NUMBER(vn_i) || ': ' ||
+                UTL_CALL_STACK.ERROR_MSG(vn_i));
+        END LOOP;
+        FOR vn_i IN 1 .. UTL_CALL_STACK.BACKTRACE_DEPTH LOOP
+            DBMS_OUTPUT.PUT_LINE(
+                UTL_CALL_STACK.BACKTRACE_UNIT(vn_i) || ' línea ' ||
+                UTL_CALL_STACK.BACKTRACE_LINE(vn_i));
+        END LOOP;
+        RAISE;</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Capturar los valores al inicio del manejador</p>
+    <p>
+      <code>SQLCODE</code>, <code>SQLERRM</code> y la traza corresponden a la excepción en curso. Si el manejador ejecuta antes otras sentencias
+      que también producen errores, esos valores pueden cambiar. Lo más seguro es copiarlos a variables locales en la primera línea del
+      manejador, o pasarlos como argumentos, como en el Código 9.1.
+    </p>
+  </div>
+
+  <h3>9.4 Errores por fila en DML masivo: <code>LOG ERRORS</code></h3>
+  <p>
+    En las cargas masivas donde algunas filas pueden ser inválidas, el DML puede guardar cada fila rechazada en una tabla de errores y
+    seguir con las demás, sin necesidad de PL/SQL. La tabla de errores se crea con <code>DBMS_ERRLOG.CREATE_ERROR_LOG</code>.
+  </p>
+  <figure class="code">
+    <figcaption>Código 9.3 · Carga que no se detiene por filas inválidas</figcaption>
+<pre><code data-sql>BEGIN
+    DBMS_ERRLOG.CREATE_ERROR_LOG(dml_table_name =&gt; 'PRODUCTO');   -- crea ERR$_PRODUCTO
+END;
+/
+
+INSERT INTO producto (id_producto, codigo, nombre, precio_unitario, costo_unitario)
+SELECT id_origen, codigo_origen, nombre_origen, precio_origen, costo_origen
+  FROM carga_temporal
+LOG ERRORS INTO err$_producto ('carga-2026-11') REJECT LIMIT UNLIMITED;
+
+-- Filas rechazadas, con la causa de cada una
+SELECT ora_err_number$, ora_err_mesg$, codigo
+  FROM err$_producto
+ WHERE ora_err_tag$ = 'carga-2026-11';</code></pre>
+  </figure>
+  <p>
+    Comparado con <code>FORALL ... SAVE EXCEPTIONS</code>, <code>LOG ERRORS</code> también funciona en sentencias SQL puras y deja los errores guardados en
+    una tabla que se puede consultar. <code>SAVE EXCEPTIONS</code> es mejor cuando la reacción al error tiene que ejecutarse dentro del propio programa.
+  </p>
+</section>
+
+<section id="seguridad">
+  <h2>10. Seguridad en PL/SQL</h2>
+
+  <h3>10.1 Derechos del definidor y del invocador</h3>
+  <p>
+    Por defecto, un subprograma se ejecuta con los privilegios de su dueño (derechos del definidor). Esto sirve como herramienta de
+    seguridad: se puede dar <code>EXECUTE</code> sobre un paquete sin dar acceso directo a las tablas que maneja, y la aplicación solo puede
+    hacer lo que el paquete permite. Con <code>AUTHID CURRENT_USER</code> el subprograma usa los privilegios de quien lo llama (derechos del
+    invocador), lo que va bien para utilidades genéricas que deben trabajar con los datos de cada usuario.
+  </p>
+  <table class="tbl">
+    <thead><tr><th></th><th>Derechos del definidor (<code>AUTHID DEFINER</code>)</th><th>Derechos del invocador (<code>AUTHID CURRENT_USER</code>)</th></tr></thead>
+    <tbody>
+      <tr><td>Privilegios usados</td><td>Los del dueño del código</td><td>Los de quien lo llama</td></tr>
+      <tr><td>Roles</td><td>No se aplican dentro de la unidad</td><td>Se aplican los roles habilitados del invocador</td></tr>
+      <tr><td>Resolución de nombres</td><td>En el esquema del dueño</td><td>En el esquema del invocador</td></tr>
+      <tr><td>Uso típico</td><td>Aplicaciones: exponer operaciones y no tablas</td><td>Utilidades genéricas sobre objetos del propio usuario</td></tr>
+      <tr><td>Riesgo principal</td><td>Un dueño con demasiados privilegios puede permitir una escalada si hay inyección</td><td>La resolución de nombres se puede manipular si no se califican los objetos</td></tr>
+    </tbody>
+  </table>
+  <figure class="code">
+    <figcaption>Código 10.1 · Exponer operaciones y no tablas</figcaption>
+<pre><code data-sql>-- El dueño del esquema (APP_OWNER) crea el paquete con derechos del definidor
+CREATE OR REPLACE PACKAGE pck_inventario AUTHID DEFINER AS
+    -- ...
+END pck_inventario;
+/
+
+-- La cuenta de la aplicación solo recibe EXECUTE, nunca acceso a las tablas
+GRANT EXECUTE ON pck_inventario TO app_usuario;
+REVOKE ALL ON producto FROM app_usuario;</code></pre>
+  </figure>
+  <p>
+    En derechos del invocador, desde 12c una unidad solo puede usar los privilegios de quien la llama si este le concedió
+    <code>INHERIT PRIVILEGES</code> a su dueño (por defecto, <code>PUBLIC</code> lo tiene concedido). Revocarlo para dueños no confiables reduce el riesgo de que
+    código ajeno aproveche los privilegios de quien lo llama.
+  </p>
+
+  <h3>10.2 Capas de defensa</h3>
+  <ol>
+    <li>Mínimo privilegio: cada cuenta recibe solo <code>EXECUTE</code> sobre los paquetes que necesita.</li>
+    <li>Nada de SQL dinámico concatenado: variables de enlace y <code>DBMS_ASSERT</code> (sección 5).</li>
+    <li>Restringir quién llama con <code>ACCESSIBLE BY</code> (sección 2.3) en los subprogramas internos.</li>
+    <li>Calificar los nombres de objeto (<code>esquema.objeto</code>) en el código con derechos del invocador.</li>
+    <li>Usar <code>wrap</code> solo si se distribuye código. Oculta el texto fuente, pero no es un cifrado fuerte ni reemplaza a los privilegios.</li>
+    <li>No dejar secretos en el código. Contraseñas, claves y tokens van fuera del texto PL/SQL. La documentación de Oracle tiene una sección sobre cómo proteger información sensible en PL/SQL.</li>
+  </ol>
+</section>
+
+<section id="rendimiento">
+  <h2>11. Rendimiento, instrumentación y diagnóstico</h2>
+  <p>
+    Antes de optimizar hay que medir. Una mejora sobre la parte equivocada no reduce el tiempo total. Oracle tiene herramientas
+    distintas según lo que se quiera averiguar.
+  </p>
+
+  <h3>11.1 Qué herramienta usar para cada pregunta</h3>
+  <table class="tbl">
+    <thead><tr><th>Pregunta</th><th>Herramienta</th></tr></thead>
+    <tbody>
+      <tr><td>¿Dónde se va el tiempo? ¿Es PL/SQL o SQL?</td><td>Perfilador jerárquico <code>DBMS_HPROF</code> <a class="ref" href="#ref-6">[6]</a> <a class="ref" href="#ref-7">[7]</a></td></tr>
+      <tr><td>¿En qué orden se ejecutaron los subprogramas?</td><td>API de traza <code>DBMS_TRACE</code> <a class="ref" href="#ref-7">[7]</a></td></tr>
+      <tr><td>¿Dónde se declara y se usa cada identificador? ¿Hay variables sin usar?</td><td>PL/Scope (<code>PLSCOPE_SETTINGS</code>)</td></tr>
+      <tr><td>¿Qué cubren las pruebas?</td><td><code>DBMS_PLSQL_CODE_COVERAGE</code></td></tr>
+      <tr><td>¿Qué módulo de la aplicación está ejecutando esta sesión?</td><td><code>DBMS_APPLICATION_INFO</code></td></tr>
+      <tr><td>¿Por qué tarda tanto la sentencia SQL?</td><td>Plan de ejecución (<code>EXPLAIN PLAN</code>, <code>DBMS_XPLAN</code>), que vimos en el taller de Banco Andino</td></tr>
+    </tbody>
+  </table>
+
+  <h3>11.2 El perfilador jerárquico</h3>
+  <p>
+    El perfilador jerárquico informa dónde gasta el tiempo un programa PL/SQL, organizado por las llamadas entre subprogramas. A
+    diferencia de un perfilador plano, muestra quién llama a quién, cuántas veces y cuánto tarda cada ruta, incluyendo a los
+    descendientes. Registra por separado el tiempo de SQL y el de PL/SQL, y no hace falta preparar ni recompilar el código
+    <a class="ref" href="#ref-6">[6]</a>.
+  </p>
+  <p>Tiene dos componentes <a class="ref" href="#ref-6">[6]</a>:</p>
+  <ul>
+    <li>La recolección de datos, integrada en la máquina virtual de PL/SQL y controlada con <code>START_PROFILING</code> y <code>STOP_PROFILING</code>.</li>
+    <li>El analizador (<code>DBMS_HPROF.ANALYZE</code>), que procesa el archivo en bruto y llena las tablas de análisis.</li>
+  </ul>
+  <p>Las métricas, en microsegundos <a class="ref" href="#ref-6">[6]</a>:</p>
+  <table class="tbl">
+    <thead><tr><th>Métrica</th><th>Columna</th><th>Significado</th></tr></thead>
+    <tbody>
+      <tr><td>Llamadas</td><td><code>CALLS</code></td><td>Cuántas veces se llamó al subprograma</td></tr>
+      <tr><td>Tiempo de función</td><td><code>FUNCTION_ELAPSED_TIME</code></td><td>Tiempo en el propio subprograma, sin descendientes</td></tr>
+      <tr><td>Tiempo de subárbol</td><td><code>SUBTREE_ELAPSED_TIME</code></td><td>Tiempo del subprograma más el de sus descendientes</td></tr>
+      <tr><td>Tiempo de descendientes</td><td>(derivado)</td><td>Subárbol menos función</td></tr>
+    </tbody>
+  </table>
+  <figure class="code">
+    <figcaption>Código 11.1 · Perfilar una ejecución y consultar el resultado</figcaption>
+<pre><code data-sql>-- 1) Una sola vez, como administrador: directorio de salida y permisos
+CREATE DIRECTORY plshprof_dir AS '/ruta/segura/plshprof';
+GRANT READ, WRITE ON DIRECTORY plshprof_dir TO app_owner;
+GRANT EXECUTE ON DBMS_HPROF TO app_owner;
+
+-- 2) Como el usuario: tablas de análisis (una vez)
+EXEC DBMS_HPROF.CREATE_TABLES;
+
+-- 3) Perfilar
+BEGIN
+    DBMS_HPROF.START_PROFILING('PLSHPROF_DIR', 'inventario.trc');
+END;
+/
+BEGIN
+    pck_inventario.sp_registrar_salida(1001, 5);   -- el código a medir
+END;
+/
+BEGIN
+    DBMS_HPROF.STOP_PROFILING;
+END;
+/
+
+-- 4) Analizar el archivo
+DECLARE
+    vn_runid NUMBER;
+BEGIN
+    vn_runid := DBMS_HPROF.ANALYZE(location =&gt; 'PLSHPROF_DIR',
+                                   filename =&gt; 'inventario.trc');
+    DBMS_OUTPUT.PUT_LINE('runid = ' || vn_runid);
+END;
+/
+
+-- 5) Las funciones más costosas de la corrida
+SELECT module, function, calls, function_elapsed_time, subtree_elapsed_time
+  FROM dbmshp_function_info
+ WHERE runid = :runid
+ ORDER BY function_elapsed_time DESC;</code></pre>
+  </figure>
+  <p>
+    Las tablas que crea el analizador son <code>DBMSHP_RUNS</code> (una fila por análisis), <code>DBMSHP_FUNCTION_INFO</code> (una por subprograma y
+    corrida) y <code>DBMSHP_PARENT_CHILD_INFO</code> (una por cada pareja llamador y llamado) <a class="ref" href="#ref-6">[6]</a>. También se puede generar un informe HTML
+    directamente desde la línea de comandos con la utilidad <code>plshprof</code>.
+  </p>
+
+  <h3>11.3 PL/Scope y trazas</h3>
+  <p>
+    PL/Scope no mide tiempo. Es una facilidad del compilador que registra los identificadores y las sentencias del código y los expone en
+    vistas como <code>ALL_IDENTIFIERS</code> y <code>ALL_STATEMENTS</code>. Sirve para análisis estático: saber dónde se usa una variable, qué
+    impacto tendría renombrarla o qué código nunca se referencia.
+  </p>
+  <figure class="code">
+    <figcaption>Código 11.2 · Variables declaradas y nunca referenciadas</figcaption>
+<pre><code data-sql>ALTER SESSION SET PLSCOPE_SETTINGS = 'IDENTIFIERS:ALL';
+ALTER PACKAGE pck_inventario COMPILE BODY;
+
+SELECT d.name, d.line
+  FROM user_identifiers d
+ WHERE d.object_name = 'PCK_INVENTARIO'
+   AND d.type        = 'VARIABLE'
+   AND d.usage       = 'DECLARATION'
+   AND NOT EXISTS (SELECT 1
+                     FROM user_identifiers r
+                    WHERE r.signature = d.signature
+                      AND r.usage     = 'REFERENCE');</code></pre>
+  </figure>
+  <p>
+    La API de traza <code>DBMS_TRACE</code> registra el orden en que se ejecutan los subprogramas que se indiquen, con el nivel de detalle que se
+    elija, en tablas que se pueden consultar <a class="ref" href="#ref-7">[7]</a>. Responde a «¿qué se ejecutó y en qué orden?», no a «¿qué fue lento?».
+  </p>
+
+  <h3>11.4 Instrumentación mínima para producción</h3>
+  <p>
+    Un programa que no dice qué está haciendo es muy difícil de diagnosticar cuando falla en producción. <code>DBMS_APPLICATION_INFO</code> deja
+    el módulo y la acción visibles en <code>V$SESSION</code> y en las trazas SQL.
+  </p>
+  <figure class="code">
+    <figcaption>Código 11.3 · Marcar el módulo y la acción de la sesión</figcaption>
+<pre><code data-sql>BEGIN
+    DBMS_APPLICATION_INFO.SET_MODULE(
+        module_name =&gt; 'pck_inventario',
+        action_name =&gt; 'sp_registrar_salida');
+    -- ... trabajo ...
+    DBMS_APPLICATION_INFO.SET_ACTION('actualizando stock');
+    -- ... trabajo ...
+    DBMS_APPLICATION_INFO.SET_MODULE(NULL, NULL);   -- limpiar al terminar
+END;
+/
+
+-- Desde otra sesión: qué está haciendo cada cliente
+SELECT sid, module, action
+  FROM v$session
+ WHERE module = 'pck_inventario';</code></pre>
+  </figure>
+
+  <h3>11.5 Advertencias del compilador y compilación condicional</h3>
+  <p>
+    Con <code>PLSQL_WARNINGS</code> el compilador avisa de problemas antes de ejecutar el código: variables sin usar, código inalcanzable,
+    conversiones implícitas costosas, manejadores <code>OTHERS</code> que no relanzan. La compilación condicional permite incluir código de
+    diagnóstico solo cuando una bandera lo pide, sin costo en producción.
+  </p>
+  <figure class="code">
+    <figcaption>Código 11.4 · Advertencias y código de depuración condicional</figcaption>
+<pre><code data-sql>ALTER SESSION SET PLSQL_WARNINGS = 'ENABLE:ALL';
+ALTER SESSION SET PLSQL_CCFLAGS  = 'depuracion:TRUE';
+
+CREATE OR REPLACE PROCEDURE sp_ejemplo_condicional IS
+BEGIN
+    $IF $$depuracion $THEN
+        DBMS_OUTPUT.PUT_LINE('Entrando a ' || $$PLSQL_UNIT);
+    $END
+    NULL;   -- lógica real
+END sp_ejemplo_condicional;
+/
+
+-- Ver las advertencias del compilador
+SELECT line, attribute, text
+  FROM user_errors
+ WHERE name = 'SP_EJEMPLO_CONDICIONAL'
+   AND attribute = 'WARNING';</code></pre>
+  </figure>
+  <p>
+    Con <code>PLSQL_OPTIMIZE_LEVEL = 2</code> (el valor predeterminado) el compilador reordena y simplifica el código. Con 3 activa además la
+    expansión agresiva de subprogramas en línea (<em>inlining</em>), que también se puede pedir a mano con
+    <code>PRAGMA INLINE(subprograma, 'YES')</code>. Si se necesita depurar con un depurador, se compila con nivel 1
+    <a class="ref" href="#ref-2">[2]</a>.
+  </p>
+</section>
+
+<section id="calidad">
+  <h2>12. Calidad de código y pruebas</h2>
+
+  <h3>12.1 Pruebas unitarias con utPLSQL</h3>
+  <p>
+    El código que vive en la base de datos también necesita pruebas automáticas. utPLSQL es un framework de pruebas unitarias de código
+    abierto para PL/SQL. Las pruebas son paquetes con anotaciones en comentarios que el framework encuentra y ejecuta.
+  </p>
+  <figure class="code">
+    <figcaption>Código 12.1 · Un paquete de pruebas</figcaption>
+<pre><code data-sql>CREATE OR REPLACE PACKAGE test_inventario AS
+    --%suite(Pruebas de pck_inventario)
+
+    --%test(Devuelve 0 cuando el producto no existe)
+    PROCEDURE stock_producto_inexistente;
+
+    --%test(Rechaza una cantidad negativa)
+    --%throws(-20100)
+    PROCEDURE rechaza_cantidad_negativa;
+END test_inventario;
+/
+
+CREATE OR REPLACE PACKAGE BODY test_inventario AS
+    PROCEDURE stock_producto_inexistente IS
+    BEGIN
+        ut.expect(pck_inventario.fn_stock_actual(-1)).to_equal(0);
+    END;
+
+    PROCEDURE rechaza_cantidad_negativa IS
+    BEGIN
+        pck_inventario.sp_registrar_salida(1001, -5);
+    END;
+END test_inventario;
+/
+
+-- Ejecutar
+EXEC ut.run('test_inventario');</code></pre>
+  </figure>
+
+  <h3>12.2 Lista de revisión de código</h3>
+  <table class="tbl">
+    <thead><tr><th>Área</th><th>Pregunta de revisión</th></tr></thead>
+    <tbody>
+      <tr><td>Rendimiento</td><td>¿Hay SQL dentro de un bucle que podría ser una sola sentencia o un <code>FORALL</code>?</td></tr>
+      <tr><td>Memoria</td><td>¿Todo <code>BULK COLLECT</code> tiene <code>LIMIT</code> o un tamaño acotado por naturaleza?</td></tr>
+      <tr><td>Seguridad</td><td>¿Hay SQL dinámico? ¿Los valores van enlazados y los identificadores validados?</td></tr>
+      <tr><td>Errores</td><td>¿Algún <code>WHEN OTHERS</code> termina sin <code>RAISE</code>?</td></tr>
+      <tr><td>Concurrencia</td><td>¿Se lee un valor y luego se escribe sin bloquear ni usar versión?</td></tr>
+      <tr><td>Bloqueos</td><td>¿Se toman varios bloqueos siempre en el mismo orden?</td></tr>
+      <tr><td>Transacciones</td><td>¿Quién decide el <code>COMMIT</code>? ¿Algún subprograma reutilizable confirma por su cuenta?</td></tr>
+      <tr><td>Triggers</td><td>¿Tienen lógica que debería estar en un paquete? ¿Consultan su propia tabla en un trigger de fila?</td></tr>
+      <tr><td>Nombres</td><td>¿Se respetan los prefijos y el nombre dice qué hace el elemento?</td></tr>
+      <tr><td>Pruebas</td><td>¿Hay una prueba para el caso normal y una para cada excepción de negocio?</td></tr>
+    </tbody>
+  </table>
+
+  <h3>12.3 Control de versiones y despliegue</h3>
+  <p>
+    El código PL/SQL se versiona como cualquier otro: un archivo por unidad en un repositorio, escrito con <code>CREATE OR REPLACE</code> para
+    que el script de despliegue se pueda repetir sin problema. Los cambios de estructura (tablas) se manejan como migraciones numeradas,
+    separadas del código de las unidades. Después de cada despliegue se revisa que no queden objetos inválidos (Código 1.2).
+  </p>
+</section>
+
+<section id="evolucion">
+  <h2>13. Evolución del lenguaje: de 12c a 23ai</h2>
+  <p>PL/SQL siguió cambiando después de 19c. La tabla resume lo que agregaron las versiones siguientes y de dónde sale cada dato.</p>
+  <table class="tbl">
+    <thead><tr><th>Versión</th><th>Novedad</th><th>Para qué sirve</th></tr></thead>
+    <tbody>
+      <tr><td>12c</td><td><code>WITH FUNCTION</code>, <code>PRAGMA UDF</code>, <code>UTL_CALL_STACK</code>, <code>INHERIT PRIVILEGES</code></td><td>Menos sobrecarga al llamar PL/SQL desde SQL, mejor diagnóstico y más control de seguridad</td></tr>
+      <tr><td>12.2</td><td><code>ACCESSIBLE BY</code></td><td>Controlar qué unidades pueden llamar a otra</td></tr>
+      <tr><td>18c</td><td>Expresiones calificadas para cualquier valor PL/SQL <a class="ref" href="#ref-8">[8]</a></td><td>Construir registros y colecciones en una sola expresión</td></tr>
+      <tr><td>19.7</td><td>Macros SQL de tabla <a class="ref" href="#ref-9">[9]</a></td><td>Vistas con parámetros sin cambio de contexto</td></tr>
+      <tr><td>21c</td><td>Macros SQL, iteradores extendidos, tipo <code>JSON</code>, caché de resultados mejorada, <code>SUPPRESSES_WARNING_6009</code> <a class="ref" href="#ref-8">[8]</a></td><td>Más expresividad y mejor rendimiento</td></tr>
+      <tr><td>23ai</td><td>Ver el detalle abajo <a class="ref" href="#ref-10">[10]</a></td><td>Menos código repetitivo en SQL y DDL</td></tr>
+    </tbody>
+  </table>
+
+  <h3>23ai: novedades de SQL que cambian el trabajo diario</h3>
+  <p>Según el tutorial oficial de novedades de SQL de Oracle Database 23ai <a class="ref" href="#ref-10">[10]</a>:</p>
+  <ul>
+    <li><code>SELECT</code> sin <code>FROM</code>: <code>SELECT CURRENT_DATE;</code> ya no necesita <code>DUAL</code>.</li>
+    <li>Tipo <code>BOOLEAN</code> nativo en columnas, que acepta valores como <code>1</code>, <code>0</code>, <code>YES</code>, <code>NO</code>, <code>TRUE</code> y <code>FALSE</code>.</li>
+    <li><code>IF [NOT] EXISTS</code> en DDL, que hace repetibles los <code>CREATE</code> y <code>DROP</code> sin bloques PL/SQL de verificación.</li>
+    <li><code>INSERT</code> de varias filas y constructor de tabla (<code>VALUES</code> en línea).</li>
+    <li>Alias en <code>GROUP BY</code>, <code>RETURNING</code> con valores antiguos y nuevos en <code>UPDATE</code> y <code>MERGE</code>, y uniones en <code>UPDATE</code>.</li>
+    <li>Anotaciones y dominios SQL, que son metadatos y tipos reutilizables a nivel de esquema.</li>
+  </ul>
+  <figure class="code">
+    <figcaption>Código 13.1 · Ejemplos de 23ai (no ejecutables en 19c)</figcaption>
+<pre><code data-sql>DROP TABLE IF EXISTS producto_demo;
+CREATE TABLE IF NOT EXISTS producto_demo (
+    id     NUMBER PRIMARY KEY,
+    activo BOOLEAN
+);
+INSERT INTO producto_demo (id, activo) VALUES (1, 'YES'), (2, 0);   -- BOOLEAN y multifila
+SELECT CURRENT_DATE;                                                -- sin FROM</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Portabilidad</p>
+    <p>Los talleres del curso se ejecutan en Oracle 19c, así que el código que se entrega debe evitar estas novedades. Las incluyo para ubicar hacia dónde va el lenguaje.</p>
+  </div>
+</section>
+
+<section id="taller">
+  <h2>14. Relación con los talleres del curso</h2>
+  <p>
+    Varios de los conceptos de esta investigación aparecen, con otro nombre, en los dos talleres que están publicados en el portafolio. La
+    tabla relaciona cada pieza del trabajo con la sección que explica el criterio de fondo.
+  </p>
+  <table class="tbl">
+    <thead><tr><th>Pieza del taller</th><th>Concepto de la investigación</th><th>Sección</th></tr></thead>
+    <tbody>
+      <tr><td>Taller PL/SQL: <code>SP_AJUSTAR_STOCK</code> con <code>SELECT ... FOR UPDATE</code></td><td>Bloqueo pesimista para evitar la pérdida de actualización</td><td>7.3</td></tr>
+      <tr><td>Taller PL/SQL: <code>BULK COLLECT</code> y <code>FORALL</code> (Parte 3)</td><td>Procesamiento por lotes y menos cambios de contexto</td><td>4</td></tr>
+      <tr><td>Taller PL/SQL: cursor con <code>WHERE CURRENT OF</code></td><td>Bloqueo de filas durante un recorrido</td><td>7.3</td></tr>
+      <tr><td>Taller PL/SQL: <code>SYS_REFCURSOR</code></td><td>Cursores de referencia y SQL dinámico</td><td>5</td></tr>
+      <tr><td>Taller PL/SQL: <code>SP_REGISTRAR_ERROR</code></td><td>Transacción autónoma para el registro de errores</td><td>7.2 y 9</td></tr>
+      <tr><td>Taller PL/SQL: <code>TRG_DETALLE_TOTAL</code> (<code>COMPOUND TRIGGER</code>)</td><td>Evitar la tabla mutante</td><td>8.2</td></tr>
+      <tr><td>Taller PL/SQL: <code>PKG_VENTAS</code> con <code>SAVEPOINT</code></td><td>Paquetes y atomicidad parcial</td><td>2 y 7.1</td></tr>
+      <tr><td>Banco Andino: actualización perdida y <code>FOR UPDATE</code></td><td>Pesimista frente a optimista</td><td>7.3 y 7.5</td></tr>
+      <tr><td>Banco Andino: <code>SKIP LOCKED</code></td><td>Reparto de colas entre procesadores</td><td>7.3</td></tr>
+      <tr><td>Banco Andino: interbloqueo <code>ORA-00060</code></td><td>Orden fijo de bloqueo</td><td>7.4</td></tr>
+      <tr><td>Banco Andino: índices por función y planes de ejecución</td><td>Revisar el SQL antes de tocar el PL/SQL</td><td>11.1</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="conclusiones">
+  <h2>15. Conclusiones y buenas prácticas</h2>
+  <p>
+    Lo difícil de PL/SQL no es escribir código que funcione, sino que siga funcionando cuando crece el volumen, cuando llegan sesiones
+    concurrentes, cuando el esquema cambia y cuando alguien intenta abusar del sistema. De todo lo revisado, me quedo con cuatro ideas:
+  </p>
+  <ol>
+    <li>Cruzar la frontera entre los dos motores tiene un costo, y cada técnica de rendimiento busca cruzarla menos veces (SQL puro, lotes, funciones en tubería, macros).</li>
+    <li>El motor solo protege lo que se le pide proteger. La consistencia ante concurrencia se diseña con bloqueos, versiones y un orden fijo.</li>
+    <li>Un error silenciado es peor que uno visible. Hay que registrarlo, relanzarlo y dejar la traza de dónde ocurrió.</li>
+    <li>Lo que no se mide ni se prueba no se puede garantizar, así que conviene perfilar antes de optimizar y automatizar las pruebas.</li>
+  </ol>
+
+  <h3>Lista de buenas prácticas</h3>
+  <ol class="checklist">
+    <li>Si la lógica cabe en una sola sentencia SQL, escribir esa sentencia.</li>
+    <li>Usar <code>LIMIT</code> en todo <code>BULK COLLECT</code> y evaluar <code>COUNT = 0</code> en lugar de <code>%NOTFOUND</code> justo después del <code>FETCH</code>.</li>
+    <li>Enlazar siempre los valores y validar los identificadores con <code>DBMS_ASSERT</code>.</li>
+    <li>Agrupar la lógica en paquetes, con la especificación más pequeña posible.</li>
+    <li>Hacer que un <code>WHEN OTHERS</code> registre y relance, nunca que silencie.</li>
+    <li>Bloquear los recursos compartidos siempre en el mismo orden.</li>
+    <li>Preferir <code>SKIP LOCKED</code> para repartir trabajo y el control de versión donde los conflictos son raros.</li>
+    <li>Dejar las transacciones autónomas para el registro y la auditoría.</li>
+    <li>Mantener los triggers cortos y usar <code>COMPOUND TRIGGER</code> si se necesita consultar la propia tabla.</li>
+    <li>Dar a las cuentas de aplicación solo <code>EXECUTE</code> sobre los paquetes.</li>
+    <li>Medir con <code>DBMS_HPROF</code> antes de optimizar y marcar módulo y acción con <code>DBMS_APPLICATION_INFO</code>.</li>
+    <li>Compilar con las advertencias activadas y revisar <code>USER_ERRORS</code> y los objetos inválidos después de cada despliegue.</li>
+    <li>Escribir pruebas para el caso normal y para cada excepción de negocio.</li>
+  </ol>
+</section>
+
+<section id="referencias">
+  <h2>Referencias</h2>
+  <h3>Fuentes consultadas directamente</h3>
+  <ol class="refs" start="1">
+    <li id="ref-1">Oracle. <em>Oracle Database PL/SQL Language Reference, 19c: Table of Contents.</em> <a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/lnpls/toc.htm">docs.oracle.com/…/19/lnpls/toc.htm</a>. Se usó para ubicar los capítulos de referencia.</li>
+    <li id="ref-2">Oracle. <em>Architecture of PL/SQL</em> (PL/SQL Language Reference, edición 23). <a href="https://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/architecture-pl-sql.html">docs.oracle.com/…/23/lnpls/architecture-pl-sql.html</a>. Motor PL/SQL, unidades, parámetros de compilación y compilación nativa.</li>
+    <li id="ref-3">Oracle. <em>PLSQL_CODE_TYPE</em> (Database Reference, 19c). <a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/refrn/PLSQL_CODE_TYPE.html">docs.oracle.com/…/19/refrn/PLSQL_CODE_TYPE.html</a>.</li>
+    <li id="ref-4">Oracle. <em>PL/SQL Dynamic SQL</em> (PL/SQL Language Reference, 19c). <a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/lnpls/dynamic-sql.html">docs.oracle.com/…/19/lnpls/dynamic-sql.html</a>. Se consultó la introducción del capítulo (mecanismos y cuándo usar cada uno).</li>
+    <li id="ref-5">Oracle. <em>Oracle Database PL/SQL Language Reference, 19c</em>, capítulos de colecciones, SQL estático, subprogramas, paquetes, triggers, manejo de errores, optimización y compilación condicional. Ver la tabla de contenido [1]. Se usaron como lectura de apoyo.</li>
+    <li id="ref-6">Oracle. <em>Using the PL/SQL Hierarchical Profiler</em> (Database Development Guide, 19c). <a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/adfns/hierarchical-profiler.html">docs.oracle.com/…/19/adfns/hierarchical-profiler.html</a>.</li>
+    <li id="ref-7">Oracle. <em>Profiling and Tracing PL/SQL Programs</em> (PL/SQL Language Reference, edición 23). <a href="https://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/profiling-and-tracing-pl-sql-programs.html">docs.oracle.com/…/23/lnpls/profiling-and-tracing-pl-sql-programs.html</a>.</li>
+    <li id="ref-8">Oracle. <em>Changes in This Release for PL/SQL Language Reference</em> (21c). <a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/lnpls/release-changes.html">docs.oracle.com/…/21/lnpls/release-changes.html</a>.</li>
+    <li id="ref-9">Oracle. <em>Release Update 19.7</em> (Database New Features, 19c). <a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/newft/ru-19-07.html">docs.oracle.com/…/19/newft/ru-19-07.html</a>.</li>
+    <li id="ref-10">Oracle. <em>Oracle Database 23ai SQL Features</em> (tutorial). <a href="https://docs.oracle.com/en/learn/db23ai-sql-features">docs.oracle.com/en/learn/db23ai-sql-features</a>.</li>
+    <li id="ref-11">Feuerstein, S. <em>Solving the row-by-row problem.</em> Oracle Magazine / Oracle Connect Blog. <a href="https://blogs.oracle.com/connect/post/solving-the-row-by-row-problem">blogs.oracle.com/connect/post/solving-the-row-by-row-problem</a>.</li>
+  </ol>
+  <h3>Aclaración sobre las fuentes</h3>
+  <p>
+    Las secciones 2, 3, 6 (la parte de <code>RESULT_CACHE</code>, <code>DETERMINISTIC</code> y <code>WITH FUNCTION</code>), 7, 8, 9 y 10 se apoyan en conocimiento
+    general del lenguaje y en la estructura de los capítulos de la documentación [5], sin citar una página puntual para cada afirmación. Si algún dato
+    se va a presentar como cita textual (por ejemplo los números de error de <code>DBMS_ASSERT</code> o la sintaxis exacta de una cláusula), conviene
+    contrastarlo con el capítulo correspondiente de la documentación 19c.
+  </p>
+</section>
+
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p>&copy; 2026 David Felipe Bejarano Montes · Ingeniería de Sistemas, Universidad El Bosque</p>
+  </footer>
+  <script src="investigacion.js"></script>
+</body>
+</html>

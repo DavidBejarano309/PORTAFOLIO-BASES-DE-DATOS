@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Taller MQL en MongoDB | David Felipe Bejarano Montes</title>
+<meta name="description" content="Taller MQL en MongoDB sobre sample_airbnb: 30 ejercicios de inserción, consulta, actualización y agregación." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b0e14'/%3E%3Ctext x='32' y='42' font-family='monospace' font-size='28' font-weight='700' fill='%234fd1c5' text-anchor='middle'%3E%26gt;_%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="investigacion.css" />
+</head>
+<body class="inv-body">
+  <header class="inv-top no-print">
+    <div class="inv-top__inner">
+      <a href="index.html#mod-nosql">&larr; Volver al portafolio</a>
+      <span class="inv-top__actions">
+        <a href="evidencias/nosql/taller-mql-airbnb.mongodb" download>Descargar script</a>
+        <a href="evidencias/nosql/taller-mql-airbnb.pdf" target="_blank" rel="noopener">Descargar PDF</a>
+      </span>
+    </div>
+  </header>
+
+  <div class="inv-layout">
+    <aside class="toc-side" aria-label="Índice">
+      <p>-- contenido</p>
+      <ol id="tocList"></ol>
+    </aside>
+    <main class="doc">
+
+<header class="cover" id="portada">
+  <p class="cover__inst">Universidad El Bosque · Ingeniería de Sistemas</p>
+  <p class="cover__course">Bases de Datos 2 · Docente: Christian Felipe Duarte</p>
+  <h1 class="cover__title">Taller MQL en MongoDB</h1>
+  <p class="cover__subtitle">Inserción, consulta, actualización y agregación sobre el dataset sample_airbnb</p>
+  <dl class="cover__meta">
+    <div><dt>Autor</dt><dd>David Felipe Bejarano Montes</dd></div>
+    <div><dt>Base y colección</dt><dd>sample_airbnb · listingsAndReviews</dd></div>
+    <div><dt>Fecha</dt><dd>3 de noviembre de 2026</dd></div>
+  </dl>
+</header>
+
+<nav class="toc-inline" id="tocInline" aria-label="Contenido"></nav>
+
+<section id="resumen">
+  <h2>Resumen</h2>
+  <p>
+    El taller pide resolver 30 ejercicios de MQL (MongoDB Query Language) sobre la colección <code>listingsAndReviews</code>
+    del dataset de ejemplo de Airbnb que trae MongoDB Atlas. Los ejercicios van de menos a más: insertar documentos, consultarlos con
+    <code>find</code>, modificarlos y, al final, analizarlos con pipelines de agregación.
+  </p>
+  <p>
+    Esta página reúne el enunciado resumido, el script de cada ejercicio y una nota con lo que hay que tener en cuenta al
+    ejecutarlo (tipos de dato, comportamiento de los operadores, orden de ejecución). El script completo se puede descargar y abrir
+    como <em>playground</em> en MongoDB for VS Code.
+  </p>
+  <div class="callout callout--warn">
+    <p class="callout__title">Sobre la ejecución</p>
+    <p>
+      Los scripts están escritos con la estructura real del dataset <code>sample_airbnb</code>, pero esta versión no incluye capturas ni
+      resultados de ejecución. Los ejercicios 1 a 5 y 16 a 20 modifican la colección, y el 17 depende del 2, así que conviene ejecutarlos en orden.
+    </p>
+  </div>
+  <table class="tbl">
+    <thead><tr><th>Bloque</th><th>Ejercicios</th><th>Operaciones</th></tr></thead>
+    <tbody>
+      <tr><td>Inserción</td><td>1 a 5</td><td><code>insertOne</code>, <code>insertMany</code>, unicidad de <code>_id</code></td></tr>
+      <tr><td>Consultas</td><td>6 a 15</td><td><code>find</code>, proyección, <code>$gt</code>, <code>$lt</code>, <code>$and</code>, <code>$in</code>, regex, arrays, <code>sort</code>, <code>limit</code></td></tr>
+      <tr><td>Actualización</td><td>16 a 20</td><td><code>updateOne</code>, <code>updateMany</code>, <code>$set</code>, <code>$push</code>, <code>$inc</code>, <code>$pull</code>, <code>upsert</code></td></tr>
+      <tr><td>Agregación</td><td>21 a 30</td><td><code>$match</code>, <code>$group</code>, <code>$unwind</code>, <code>$project</code>, <code>$bucket</code>, <code>$lookup</code>, <code>$year</code></td></tr>
+    </tbody>
+  </table>
+</section>
+<section id="bloque1">
+  <h2>1. Inserción de documentos</h2>
+  <h3>Ejercicio 1. insertOne básico</h3>
+  <p>Insertar un listing con <code>name</code>, <code>summary</code>, <code>property_type: "Cabin"</code> y <code>price: 150.00</code>.</p>
+  <figure class="code">
+    <figcaption>Ejercicio 1 · insertOne básico</figcaption>
+<pre><code data-mql>col.insertOne({
+  name: &quot;Cozy Cabin Retreat&quot;,
+  summary: &quot;Cabana acogedora rodeada de bosque, ideal para desconectarse.&quot;,
+  property_type: &quot;Cabin&quot;,
+  price: NumberDecimal(&quot;150.00&quot;)
+});</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p>El <code>price</code> se guarda como <code>NumberDecimal</code> porque en <code>sample_airbnb</code> el precio es de tipo Decimal128. Si se insertara un número normal, la colección quedaría con dos tipos distintos en el mismo campo. Como no se envía <code>_id</code>, MongoDB genera un <code>ObjectId</code>.</p>
+  </div>
+  <h3>Ejercicio 2. insertOne con objeto anidado (address)</h3>
+  <p>Insertar un listing con el objeto anidado <code>address</code>, con <code>country: "Chile"</code> y <code>market: "Santiago"</code>.</p>
+  <figure class="code">
+    <figcaption>Ejercicio 2 · insertOne con objeto anidado (address)</figcaption>
+<pre><code data-mql>col.insertOne({
+  name: &quot;Casa Patagonia Lodge&quot;,
+  summary: &quot;Casa de montana con vista al lago.&quot;,
+  property_type: &quot;House&quot;,
+  price: NumberDecimal(&quot;120.00&quot;),
+  address: {
+    country: &quot;Chile&quot;,
+    market: &quot;Santiago&quot;
+  }
+});</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p><code>address</code> se escribe como un documento dentro del documento. Más adelante se accede a sus campos con notación de punto (<code>"address.country"</code>).</p>
+  </div>
+  <h3>Ejercicio 3. insertMany simple</h3>
+  <p>Insertar en una sola operación “Studio de Arte Urbano” (80.00) y “Loft Minimalista” (110.00).</p>
+  <figure class="code">
+    <figcaption>Ejercicio 3 · insertMany simple</figcaption>
+<pre><code data-mql>col.insertMany([
+  { name: &quot;Studio de Arte Urbano&quot;, price: NumberDecimal(&quot;80.00&quot;) },
+  { name: &quot;Loft Minimalista&quot;, price: NumberDecimal(&quot;110.00&quot;) }
+]);</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p><code>insertMany</code> es ordenado por defecto: si un documento falla, los siguientes no se insertan. Con <code>{ ordered: false }</code> el motor intenta insertar todos.</p>
+  </div>
+  <h3>Ejercicio 4. insertMany con arrays (amenities)</h3>
+  <p>Insertar listings que incluyan un array <code>amenities</code> con al menos tres elementos.</p>
+  <figure class="code">
+    <figcaption>Ejercicio 4 · insertMany con arrays (amenities)</figcaption>
+<pre><code data-mql>col.insertMany([
+  {
+    name: &quot;Apartamento Centro Historico&quot;,
+    property_type: &quot;Apartment&quot;,
+    price: NumberDecimal(&quot;95.00&quot;),
+    amenities: [&quot;Wifi&quot;, &quot;Kitchen&quot;, &quot;Free parking&quot;]
+  },
+  {
+    name: &quot;Casa de Campo Los Alamos&quot;,
+    property_type: &quot;House&quot;,
+    price: NumberDecimal(&quot;130.00&quot;),
+    amenities: [&quot;Wifi&quot;, &quot;Heating&quot;, &quot;Kitchen&quot;, &quot;Free parking&quot;]
+  }
+]);</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p>Los arrays no necesitan declararse antes: basta con escribir la lista. El enunciado habla de un listing; inserté dos para dejar un dato con “Heating”, útil para probar el ejercicio 12.</p>
+  </div>
+  <h3>Ejercicio 5. Validación de _id duplicado</h3>
+  <p>Insertar un listing con un <code>_id</code> que ya existe, observar el error y describirlo.</p>
+  <figure class="code">
+    <figcaption>Ejercicio 5 · Validación de _id duplicado</figcaption>
+<pre><code data-mql>// Se toma el _id de un documento que ya existe y se intenta reutilizar.
+const idExistente = col.findOne({}, { _id: 1 })._id;
+try {
+  col.insertOne({ _id: idExistente, name: &quot;Listing con _id repetido&quot;, price: NumberDecimal(&quot;50.00&quot;) });
+} catch (e) {
+  print(&quot;Error esperado: &quot; + e.message);   // E11000 duplicate key error
+}</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p>Resultado esperado: error <code>E11000 duplicate key error collection: sample_airbnb.listingsAndReviews index: _id_</code>. El índice sobre <code>_id</code> es único y se crea de forma automática, así que MongoDB rechaza el documento. En vez de escribir un <code>_id</code> a mano, el script lee uno que ya existe para que el ejercicio funcione igual sin importar el dataset.</p>
+  </div>
+</section>
+<section id="bloque2">
+  <h2>2. Consultas con find</h2>
+  <h3>Ejercicio 6. Listings de Brazil (name y price)</h3>
+  <p>Mostrar <code>name</code> y <code>price</code> de los listings ubicados en Brazil.</p>
+  <figure class="code">
+    <figcaption>Ejercicio 6 · Listings de Brazil (name y price)</figcaption>
+<pre><code data-mql>col.find(
+  { &quot;address.country&quot;: &quot;Brazil&quot; },
+  { _id: 0, name: 1, price: 1 }
+);</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p>El segundo argumento de <code>find</code> es la proyección. <code>_id: 0</code> oculta el identificador, que aparece por defecto.</p>
+  </div>
+  <h3>Ejercicio 7. Más de 5 camas ($gt)</h3>
+  <p>Listings con más de 5 <code>beds</code>, mostrando <code>name</code> y <code>number_of_reviews</code>.</p>
+  <figure class="code">
+    <figcaption>Ejercicio 7 · Más de 5 camas ($gt)</figcaption>
+<pre><code data-mql>col.find(
+  { beds: { $gt: 5 } },
+  { _id: 0, name: 1, number_of_reviews: 1 }
+);</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p><code>$gt</code> es “mayor que” estricto. Los documentos sin el campo <code>beds</code> no cumplen la condición.</p>
+  </div>
+  <h3>Ejercicio 8. Precio menor a 75 ($lt)</h3>
+  <p>Listings con <code>price</code> menor a 75, proyectando <code>name</code>, <code>price</code> y <code>property_type</code>.</p>
+  <figure class="code">
+    <figcaption>Ejercicio 8 · Precio menor a 75 ($lt)</figcaption>
+<pre><code data-mql>col.find(
+  { price: { $lt: 75 } },
+  { _id: 0, name: 1, price: 1, property_type: 1 }
+);</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p>El precio está guardado como Decimal128; MongoDB compara tipos numéricos distintos por su valor, así que se puede filtrar con el número 75 sin convertirlo.</p>
+  </div>
+  <h3>Ejercicio 9. $and con objeto anidado: Apartment en New York</h3>
+  <p>Listings de tipo “Apartment” ubicados en el <code>market</code> “New York”.</p>
+  <figure class="code">
+    <figcaption>Ejercicio 9 · $and con objeto anidado: Apartment en New York</figcaption>
+<pre><code data-mql>col.find({
+  $and: [
+    { property_type: &quot;Apartment&quot; },
+    { &quot;address.market&quot;: &quot;New York&quot; }
+  ]
+});</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p>Con <code>$and</code> ambas condiciones deben cumplirse. Aquí también habría bastado el filtro implícito <code>{ property_type: "Apartment", "address.market": "New York" }</code>. La ciudad está en <code>address.market</code>, no en un campo <code>city</code>.</p>
+  </div>
+  <h3>Ejercicio 10. $in: House o Condominium</h3>
+  <p>Listings cuyo <code>property_type</code> sea “House” o “Condominium”.</p>
+  <figure class="code">
+    <figcaption>Ejercicio 10 · $in: House o Condominium</figcaption>
+<pre><code data-mql>col.find({ property_type: { $in: [&quot;House&quot;, &quot;Condominium&quot;] } });</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p><code>$in</code> equivale a varios <code>$or</code> sobre el mismo campo.</p>
+  </div>
+  <h3>Ejercicio 11. Regex sin distinción de mayúsculas: &quot;Luxury&quot;</h3>
+  <p>Listings cuyo <code>name</code> contenga “Luxury”, sin distinguir mayúsculas.</p>
+  <figure class="code">
+    <figcaption>Ejercicio 11 · Regex sin distinción de mayúsculas: &quot;Luxury&quot;</figcaption>
+<pre><code data-mql>col.find({ name: { $regex: /Luxury/i } });</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p>La opción <code>i</code> de la expresión regular ignora mayúsculas. Un regex sin ancla no usa bien un índice, así que sobre colecciones grandes es lento.</p>
+  </div>
+  <h3>Ejercicio 12. Búsqueda en array: amenity &quot;Heating&quot;</h3>
+  <p>Listings que ofrezcan “Heating” entre sus amenities.</p>
+  <figure class="code">
+    <figcaption>Ejercicio 12 · Búsqueda en array: amenity &quot;Heating&quot;</figcaption>
+<pre><code data-mql>col.find({ amenities: &quot;Heating&quot; });</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p>Cuando el campo es un array, <code>{ amenities: "Heating" }</code> coincide si algún elemento es igual al valor.</p>
+  </div>
+  <h3>Ejercicio 13. $size: exactamente 20 amenities</h3>
+  <p>Listings con exactamente 20 amenities.</p>
+  <figure class="code">
+    <figcaption>Ejercicio 13 · $size: exactamente 20 amenities</figcaption>
+<pre><code data-mql>col.find({ amenities: { $size: 20 } });</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p><code>$size</code> solo admite un número exacto; no sirve para rangos como “más de 10” (por eso el ejercicio 21 usa <code>$expr</code>).</p>
+  </div>
+  <h3>Ejercicio 14. Los 10 más caros (sort + limit)</h3>
+  <p>Los 10 listings más caros, con <code>name</code>, <code>price</code> y <code>address.country</code>.</p>
+  <figure class="code">
+    <figcaption>Ejercicio 14 · Los 10 más caros (sort + limit)</figcaption>
+<pre><code data-mql>col.find(
+  {},
+  { _id: 0, name: 1, price: 1, &quot;address.country&quot;: 1 }
+).sort({ price: -1 }).limit(10);</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p>En el ordenamiento, <code>-1</code> es descendente. <code>sort</code> y <code>limit</code> se aplican después del filtro y antes de la proyección en el resultado final.</p>
+  </div>
+  <h3>Ejercicio 15. Sin last_review (ausente o nulo), por number_of_reviews desc</h3>
+  <p>Listings sin <code>last_review</code> (ausente o nulo), ordenados por <code>number_of_reviews</code> descendente.</p>
+  <figure class="code">
+    <figcaption>Ejercicio 15 · Sin last_review (ausente o nulo), por number_of_reviews desc</figcaption>
+<pre><code data-mql>// { last_review: null } coincide con campo nulo y con campo ausente.
+col.find(
+  { last_review: null },
+  { _id: 0, name: 1, summary: 1, description: 1 }
+).sort({ number_of_reviews: -1 });</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p>El filtro <code>{ last_review: null }</code> coincide con los documentos donde el campo es nulo y con los que no lo tienen. Si se quisiera distinguir, se usaría <code>$exists</code>.</p>
+  </div>
+</section>
+<section id="bloque3">
+  <h2>3. Actualización de documentos</h2>
+  <h3>Ejercicio 16. updateOne simple</h3>
+  <p>Cambiar el <code>property_type</code> de “Cozy Cabin Retreat” a “Entire home/apt”.</p>
+  <figure class="code">
+    <figcaption>Ejercicio 16 · updateOne simple</figcaption>
+<pre><code data-mql>col.updateOne(
+  { name: &quot;Cozy Cabin Retreat&quot; },
+  { $set: { property_type: &quot;Entire home/apt&quot; } }
+);</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p><code>updateOne</code> modifica solo el primer documento que cumpla el filtro. Si hubiera dos listings con el mismo nombre, cambiaría uno solo.</p>
+  </div>
+  <h3>Ejercicio 17. updateOne con $push sobre el listing del ejercicio 2</h3>
+  <p>Añadir la amenity “Smart TV” al listing insertado en el ejercicio 2.</p>
+  <figure class="code">
+    <figcaption>Ejercicio 17 · updateOne con $push sobre el listing del ejercicio 2</figcaption>
+<pre><code data-mql>// El documento del ejercicio 2 no tenia amenities: $push crea el array.
+col.updateOne(
+  { name: &quot;Casa Patagonia Lodge&quot; },
+  { $push: { amenities: &quot;Smart TV&quot; } }
+);</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p><code>$push</code> agrega un elemento al final del array; si el campo no existe, lo crea. Si se quisiera evitar duplicados se usaría <code>$addToSet</code>. Depende de que el ejercicio 2 se haya ejecutado antes.</p>
+  </div>
+  <h3>Ejercicio 18. updateMany con $inc: Spain</h3>
+  <p>Incrementar en 1 el <code>number_of_reviews</code> de todos los listings de Spain.</p>
+  <figure class="code">
+    <figcaption>Ejercicio 18 · updateMany con $inc: Spain</figcaption>
+<pre><code data-mql>col.updateMany(
+  { &quot;address.country&quot;: &quot;Spain&quot; },
+  { $inc: { number_of_reviews: 1 } }
+);</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p><code>updateMany</code> aplica el cambio a todos los documentos que coincidan. Si el campo no existe, <code>$inc</code> lo crea con el valor del incremento.</p>
+  </div>
+  <h3>Ejercicio 19. updateMany con $pull: quitar &quot;Cable TV&quot;</h3>
+  <p>Eliminar la amenity “Cable TV” de todos los listings que la contengan.</p>
+  <figure class="code">
+    <figcaption>Ejercicio 19 · updateMany con $pull: quitar &quot;Cable TV&quot;</figcaption>
+<pre><code data-mql>col.updateMany(
+  { amenities: &quot;Cable TV&quot; },
+  { $pull: { amenities: &quot;Cable TV&quot; } }
+);</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p><code>$pull</code> elimina todos los elementos que coincidan con la condición. Es una modificación masiva sobre el dataset, así que conviene ejecutarla una sola vez.</p>
+  </div>
+  <h3>Ejercicio 20. Upsert</h3>
+  <p>Actualizar “Mansión de Prueba” y, si no existe, insertarla con precio 1500.00 y país United States.</p>
+  <figure class="code">
+    <figcaption>Ejercicio 20 · Upsert</figcaption>
+<pre><code data-mql>// El filtro aporta el name; $setOnInsert solo aplica si el documento se crea.
+col.updateOne(
+  { name: &quot;Mansion de Prueba&quot; },
+  { $setOnInsert: { price: NumberDecimal(&quot;1500.00&quot;), &quot;address.country&quot;: &quot;United States&quot; } },
+  { upsert: true }
+);</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p>Con <code>upsert: true</code>, si el filtro no encuentra nada, MongoDB crea un documento con los campos del filtro más los de la actualización. <code>$setOnInsert</code> hace que precio y país solo se escriban cuando el documento se crea, sin pisar uno existente.</p>
+  </div>
+</section>
+<section id="bloque4">
+  <h2>4. Pipelines de agregación</h2>
+  <h3>Ejercicio 21. $match y $count: más de 10 amenities</h3>
+  <p>Contar los listings con más de 10 amenities.</p>
+  <figure class="code">
+    <figcaption>Ejercicio 21 · $match y $count: más de 10 amenities</figcaption>
+<pre><code data-mql>col.aggregate([
+  { $match: { $expr: { $gt: [{ $size: { $ifNull: [&quot;$amenities&quot;, []] } }, 10] } } },
+  { $count: &quot;listings_con_mas_de_10_amenities&quot; }
+]);</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p><code>$size</code> dentro de <code>$match</code> no admite comparaciones, así que se usa <code>$expr</code> con <code>$gt</code>. <code>$ifNull</code> evita un error en los documentos sin el campo <code>amenities</code>.</p>
+  </div>
+  <h3>Ejercicio 22. Precio promedio por país</h3>
+  <p>Precio promedio de los listings por <code>address.country</code>.</p>
+  <figure class="code">
+    <figcaption>Ejercicio 22 · Precio promedio por país</figcaption>
+<pre><code data-mql>col.aggregate([
+  { $group: { _id: &quot;$address.country&quot;, precio_promedio: { $avg: &quot;$price&quot; } } },
+  { $sort: { precio_promedio: -1 } }
+]);</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p>Los listings sin <code>address.country</code> quedan agrupados bajo <code>_id: null</code>. Se ordena por promedio para leer el resultado más fácil.</p>
+  </div>
+  <h3>Ejercicio 23. Top 5 amenities ($unwind + $group)</h3>
+  <p>Las 5 amenities más frecuentes en todo el dataset.</p>
+  <figure class="code">
+    <figcaption>Ejercicio 23 · Top 5 amenities ($unwind + $group)</figcaption>
+<pre><code data-mql>col.aggregate([
+  { $unwind: &quot;$amenities&quot; },
+  { $group: { _id: &quot;$amenities&quot;, frecuencia: { $sum: 1 } } },
+  { $sort: { frecuencia: -1 } },
+  { $limit: 5 }
+]);</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p><code>$unwind</code> genera un documento por cada elemento del array. Los documentos sin amenities (o con el array vacío) desaparecen del resultado.</p>
+  </div>
+  <h3>Ejercicio 24. Cantidad de listings por property_type</h3>
+  <p>Cantidad de listings por <code>property_type</code>, de mayor a menor.</p>
+  <figure class="code">
+    <figcaption>Ejercicio 24 · Cantidad de listings por property_type</figcaption>
+<pre><code data-mql>col.aggregate([
+  { $match: { property_type: { $exists: true } } },
+  { $group: { _id: &quot;$property_type&quot;, cantidad: { $sum: 1 } } },
+  { $sort: { cantidad: -1 } }
+]);</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p>Se filtra primero por <code>$exists</code> para no contar los documentos sin <code>property_type</code> bajo un grupo nulo.</p>
+  </div>
+  <h3>Ejercicio 25. $project con conversión de tipo ($toInt)</h3>
+  <p>Mostrar <code>name</code>, <code>price</code> y un campo <code>price_entero</code> con el precio convertido a entero.</p>
+  <figure class="code">
+    <figcaption>Ejercicio 25 · $project con conversión de tipo ($toInt)</figcaption>
+<pre><code data-mql>col.aggregate([
+  { $project: { _id: 0, name: 1, price: 1, price_entero: { $toInt: &quot;$price&quot; } } }
+]);</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p><code>$toInt</code> convierte el valor a entero. Si lo que se busca es redondear y no truncar, se usaría <code>$round</code> antes de la conversión. Conviene revisar en el resultado qué hace con los centavos.</p>
+  </div>
+  <h3>Ejercicio 26. Promedio de review_scores_rating con &gt;= 10 reviews</h3>
+  <p>Promedio de <code>review_scores_rating</code> para los listings con al menos 10 reviews.</p>
+  <figure class="code">
+    <figcaption>Ejercicio 26 · Promedio de review_scores_rating con &gt;= 10 reviews</figcaption>
+<pre><code data-mql>col.aggregate([
+  { $match: { number_of_reviews: { $gte: 10 } } },
+  { $group: { _id: null, promedio_rating: { $avg: &quot;$review_scores.review_scores_rating&quot; } } }
+]);</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p>Con <code>_id: null</code> el <code>$group</code> reúne todos los documentos del filtro en un solo grupo. <code>$avg</code> ignora los documentos donde el valor no existe.</p>
+  </div>
+  <h3>Ejercicio 27. $bucket por rangos de precio</h3>
+  <p>Agrupar los listings por rangos de precio: 0-100, 101-300, 301-1000 y 1000+.</p>
+  <figure class="code">
+    <figcaption>Ejercicio 27 · $bucket por rangos de precio</figcaption>
+<pre><code data-mql>// Los limites inferiores son inclusivos y los superiores exclusivos.
+// &quot;default&quot; recoge todo lo que cae fuera de los limites (precio &gt;= 1001).
+col.aggregate([
+  { $match: { price: { $exists: true } } },
+  {
+    $bucket: {
+      groupBy: &quot;$price&quot;,
+      boundaries: [0, 101, 301, 1001],
+      default: &quot;1000+&quot;,
+      output: { cantidad: { $sum: 1 } }
+    }
+  }
+]);</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p>En <code>$bucket</code> el límite inferior es inclusivo y el superior exclusivo. Por eso las fronteras son 0, 101, 301 y 1001: un precio de 100.50 queda en el primer rango. Lo que cae fuera de las fronteras (1001 o más) va al grupo <code>default</code>. Cada rango se identifica por su límite inferior.</p>
+  </div>
+  <h3>Ejercicio 28. $lookup (teórico): colección hipotética &quot;hosts&quot;</h3>
+  <p>Describir (teórico) un pipeline con <code>$lookup</code> para unir listings con una colección <code>hosts</code>.</p>
+  <figure class="code">
+    <figcaption>Ejercicio 28 · $lookup (teórico): colección hipotética &quot;hosts&quot;</figcaption>
+<pre><code data-mql>col.aggregate([
+  {
+    $lookup: {
+      from: &quot;hosts&quot;,
+      localField: &quot;host.host_id&quot;,
+      foreignField: &quot;host_id&quot;,
+      as: &quot;anfitrion&quot;
+    }
+  },
+  { $unwind: { path: &quot;$anfitrion&quot;, preserveNullAndEmptyArrays: true } },
+  { $project: { _id: 0, name: 1, &quot;anfitrion.host_name&quot;: 1, &quot;anfitrion.host_is_superhost&quot;: 1 } }
+]);</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p>Este ejercicio es teórico: en <code>sample_airbnb</code> los datos del anfitrión están incrustados en <code>host</code>, no en otra colección. <code>$lookup</code> hace una unión externa por la izquierda; devuelve un array (<code>as</code>), que <code>$unwind</code> aplana. Con <code>preserveNullAndEmptyArrays</code> se conservan los listings sin anfitrión.</p>
+  </div>
+  <h3>Ejercicio 29. Promedio de accommodates por property_type</h3>
+  <p>Promedio de <code>accommodates</code> por <code>property_type</code>, de mayor a menor.</p>
+  <figure class="code">
+    <figcaption>Ejercicio 29 · Promedio de accommodates por property_type</figcaption>
+<pre><code data-mql>col.aggregate([
+  { $group: { _id: &quot;$property_type&quot;, promedio_huespedes: { $avg: &quot;$accommodates&quot; } } },
+  { $sort: { promedio_huespedes: -1 } }
+]);</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p>Ejercicio parecido al 22, ahora con <code>accommodates</code> (capacidad máxima de huéspedes).</p>
+  </div>
+  <h3>Ejercicio 30. Listings por año de su última review</h3>
+  <p>Cantidad de listings por año de su última review.</p>
+  <figure class="code">
+    <figcaption>Ejercicio 30 · Listings por año de su última review</figcaption>
+<pre><code data-mql>col.aggregate([
+  { $match: { last_review: { $ne: null } } },
+  { $group: { _id: { $year: &quot;$last_review&quot; }, listings: { $sum: 1 } } },
+  { $sort: { _id: 1 } }
+]);</code></pre>
+  </figure>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p>El campo <code>last_review</code> es de tipo fecha, por eso funciona <code>$year</code>. Se excluyen los listings sin última review y el resultado se ordena por año.</p>
+  </div>
+</section>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p>&copy; 2026 David Felipe Bejarano Montes · Ingeniería de Sistemas, Universidad El Bosque</p>
+  </footer>
+  <script src="investigacion.js"></script>
+</body>
+</html>

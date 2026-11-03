@@ -526,3 +526,22 @@ a:focus-visible, .btn:focus-visible, .card--link:focus-visible{ outline: 2px sol
   .node__body{ padding: 1.1rem 1.1rem; }
   .module__head{ padding-left: 1rem; }
 }
+
+/* ---------- Ajustes de pulido ---------- */
+.presentacion__photo img{ height: auto; }
+
+.skillgroups{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 2rem 3rem;
+}
+.skillgroup h3{
+  margin: 0 0 0.8rem;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--amber);
+}
+.section--contact .module__actions{ margin-top: 0.5rem; }
+.presentacion__copy .about__text + .about__text{ margin-top: 1rem; }
+.skillgroups{ grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
