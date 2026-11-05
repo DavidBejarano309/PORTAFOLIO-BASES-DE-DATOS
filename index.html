@@ -147,7 +147,7 @@
           <span class="card__tag card__tag--violet">NoSQL</span>
           <h3>Bases no relacionales</h3>
           <p>Modelado de documentos y consultas.</p>
-          <span class="card__status card__status--ok">2 talleres</span>
+          <span class="card__status card__status--ok">3 trabajos</span>
         </a>
         <a class="card card--link" href="#mod-proyecto">
           <span class="card__tag card__tag--rose">PROY</span>
@@ -421,19 +421,19 @@ BEGIN
       <article class="module module--violet" id="mod-nosql">
         <header class="module__head">
           <p class="module__kicker">Módulo NoSQL</p>
-          <h3 class="module__title">MongoDB: consultas MQL y patrones de modelado de documentos</h3>
+          <h3 class="module__title">MongoDB: consultas MQL, índices y patrones de modelado</h3>
           <dl class="meta">
-            <div><dt>Fecha</dt><dd>03/11/2026</dd></div>
-            <div><dt>Equipo</dt><dd>David Bejarano y José David Rodríguez</dd></div>
-            <div><dt>Entorno</dt><dd>MongoDB Atlas, VS Code, dataset sample_airbnb</dd></div>
+            <div><dt>Fecha</dt><dd>Noviembre de 2026</dd></div>
+            <div><dt>Equipo</dt><dd>David Bejarano, Samuel Camelo y José Rodríguez</dd></div>
+            <div><dt>Entorno</dt><dd>MongoDB Atlas y VS Code, datasets sample_mflix y sample_airbnb</dd></div>
           </dl>
           <p class="module__desc">
-            Dos trabajos sobre bases de datos orientadas a documentos: un taller de 30 ejercicios en MQL sobre el dataset de Airbnb
-            y un estudio de los doce patrones de modelado de MongoDB aplicados al proyecto SIRAV.
+            Tres trabajos sobre bases de datos orientadas a documentos: el taller de consultas, agregación e índices con modelado por
+            patrones, un taller de ejercicios CRUD en MQL y el estudio de los doce patrones de modelado de MongoDB aplicados al proyecto SIRAV.
           </p>
           <div class="module__actions">
-            <a class="btn btn--primary" href="taller-mql.html">Ver taller MQL</a>
-            <a class="btn btn--ghost" href="evidencias/nosql/taller-mql-airbnb.mongodb" download>Descargar script (.mongodb)</a>
+            <a class="btn btn--primary" href="taller-mql-indices.html">Ver taller MQL</a>
+            <a class="btn btn--ghost" href="evidencias/nosql/taller-mql-informe.pdf" target="_blank" rel="noopener">Informe del taller (PDF)</a>
             <a class="btn btn--ghost" href="patrones-nosql.html">Ver patrones de modelado</a>
           </div>
         </header>
@@ -441,8 +441,30 @@ BEGIN
           <li class="node">
             <span class="node__dot" aria-hidden="true"></span>
             <div class="node__body">
-              <p class="node__step">Taller 1 · 30 ejercicios</p>
-              <h4>Consultas y modificaciones con MQL sobre sample_airbnb</h4>
+              <p class="node__step">Taller 1 · 16 puntos</p>
+              <h4>Consultas, agregación e índices en MongoDB, con modelado por patrones</h4>
+              <p>
+                Consultas con <code>find</code> y pipelines de agregación sobre <code>sample_mflix</code>, escritura con <code>$out</code>,
+                <code>updateMany</code> y <code>deleteMany</code>, un análisis con <code>explain</code> que pasa de recorrer 21.349 documentos a leer 10 con un índice ESR,
+                y el modelado de dos casos (domicilios y calidad del aire en Bogotá) con patrones de diseño.
+              </p>
+              <ul class="chips">
+                <li>find</li><li>aggregate</li><li>$lookup</li><li>explain</li><li>índice ESR</li><li>Bucket</li><li>Subset</li><li>Schema Versioning</li>
+              </ul>
+              <div class="module__actions">
+                <a class="btn btn--primary" href="taller-mql-indices.html">Leer el taller</a>
+                <a class="btn btn--ghost" href="evidencias/nosql/taller-mql-informe.pdf" target="_blank" rel="noopener">Informe (PDF, 35 págs.)</a>
+                <a class="btn btn--ghost" href="evidencias/nosql/taller-mql-modelo-parteD.pdf" target="_blank" rel="noopener">Modelo parte D (PDF)</a>
+                <a class="btn btn--ghost" href="evidencias/nosql/taller-mql-puntos-1-a-16.js" download>Script (.js)</a>
+              </div>
+            </div>
+          </li>
+
+          <li class="node">
+            <span class="node__dot" aria-hidden="true"></span>
+            <div class="node__body">
+              <p class="node__step">Taller 2 · 30 ejercicios</p>
+              <h4>Ejercicios CRUD con MQL sobre sample_airbnb</h4>
               <p>
                 Inserción de documentos (incluido un <code>_id</code> duplicado), consultas con filtros, proyecciones y
                 ordenamientos, actualizaciones con <code>$set</code>, <code>$push</code>, <code>$inc</code>, <code>$pull</code> y
@@ -461,7 +483,7 @@ BEGIN
           <li class="node">
             <span class="node__dot" aria-hidden="true"></span>
             <div class="node__body">
-              <p class="node__step">Taller 2 · Video</p>
+              <p class="node__step">Taller 3 · Video</p>
               <h4>Patrones de modelado de documentos en MongoDB</h4>
               <p>
                 Explicación de los doce patrones (Approximation, Attribute, Bucket, Computed, Document Versioning, Extended Reference,

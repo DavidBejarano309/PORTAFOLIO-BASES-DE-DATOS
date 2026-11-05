@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Taller MQL: consultas, agregación e índices | David Felipe Bejarano Montes</title>
+<meta name="description" content="Taller MQL en MongoDB sobre sample_mflix: consultas, agregación, escritura, índices y modelado con patrones (16 puntos)." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b0e14'/%3E%3Ctext x='32' y='42' font-family='monospace' font-size='28' font-weight='700' fill='%234fd1c5' text-anchor='middle'%3E%26gt;_%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="investigacion.css" />
+</head>
+<body class="inv-body">
+  <header class="inv-top no-print">
+    <div class="inv-top__inner">
+      <a href="index.html#mod-nosql">&larr; Volver al portafolio</a>
+      <span class="inv-top__actions">
+        <a href="evidencias/nosql/taller-mql-puntos-1-a-16.js" download>Descargar script</a>
+        <a href="evidencias/nosql/taller-mql-informe.pdf" target="_blank" rel="noopener">Informe completo (PDF)</a>
+      </span>
+    </div>
+  </header>
+
+  <div class="inv-layout">
+    <aside class="toc-side" aria-label="Índice">
+      <p>-- contenido</p>
+      <ol id="tocList"></ol>
+    </aside>
+    <main class="doc">
+
+<header class="cover" id="portada">
+  <p class="cover__inst">Universidad El Bosque · Ingeniería de Sistemas</p>
+  <p class="cover__course">Bases de Datos 2 · Docente: Christian Felipe Duarte</p>
+  <h1 class="cover__title">Taller MQL: consultas, agregación e índices en MongoDB</h1>
+  <p class="cover__subtitle">Dieciséis puntos ejecutados en MongoDB Atlas desde VS Code, con modelado por patrones de diseño</p>
+  <dl class="cover__meta">
+    <div><dt>Integrantes</dt><dd>David Felipe Bejarano Montes · Samuel Camelo · José Rodríguez</dd></div>
+    <div><dt>Bases de datos</dt><dd>sample_mflix (partes A, B y C) · taller_parteD</dd></div>
+    <div><dt>Fecha</dt><dd>Noviembre de 2026</dd></div>
+  </dl>
+</header>
+
+<nav class="toc-inline" id="tocInline" aria-label="Contenido"></nav>
+
+<section id="resumen">
+  <h2>Resumen</h2>
+  <p>
+    El taller reúne 16 puntos que se resolvieron en MongoDB Atlas con MongoDB for VS Code. Las partes A, B y C trabajan sobre la base de
+    ejemplo <code>sample_mflix</code> (películas y comentarios): consultas con <code>find</code>, agregaciones, escritura con
+    <code>$out</code>, <code>updateMany</code> y <code>deleteMany</code>, y un análisis con <code>explain</code> antes y después de crear un índice.
+    La parte D propone el modelo de dos casos con patrones de diseño: una plataforma de domicilios y una red de sensores de calidad del aire en Bogotá. Cada
+    caso se carga con datos de prueba y se consulta en una base propia, <code>taller_parteD</code>.
+  </p>
+  <p>
+    En el informe cada punto tiene su consulta, la captura de la ejecución y una explicación del resultado. Esta página resume los resultados principales; el
+    informe de 35 páginas, el modelo de la parte D (13 páginas), el script con los 16 puntos y los documentos de ejemplo se pueden descargar al final.
+  </p>
+  <table class="tbl">
+    <thead><tr><th>Parte</th><th>Puntos</th><th>Tema</th></tr></thead>
+    <tbody>
+      <tr><td>A</td><td>1 a 5</td><td>Consultas con <code>find</code>: filtros, arreglos, regex y proyección</td></tr>
+      <tr><td>B</td><td>6 a 10</td><td>Agregación: <code>$unwind</code>, <code>$group</code>, <code>$lookup</code>, cálculo de décadas y estadísticas</td></tr>
+      <tr><td>C</td><td>11 a 14</td><td>Escritura (<code>$out</code>, <code>updateMany</code>, <code>deleteMany</code>) e índices con <code>explain</code></td></tr>
+      <tr><td>D</td><td>15 y 16</td><td>Modelado con patrones: domicilios y calidad del aire</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="parte-a">
+  <h2>Parte A · Consultas con find</h2>
+  <table class="tbl">
+    <thead><tr><th>Punto</th><th>Enunciado</th><th>Técnica</th><th>Resultado</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Drama entre 2000 y 2010 con rating de 8 o más</td><td>Filtro con AND implícito, proyección, <code>sort</code>, <code>limit</code> y <code>countDocuments</code></td><td>Encabezan Band of Brothers y The Dark Knight</td></tr>
+      <tr><td>2</td><td>Películas con Tom Hanks no dirigidas por Steven Spielberg</td><td>Igualdad sobre arreglo y <code>$ne</code></td><td>Splash, Nothing in Common, Big y Punchline, entre otras</td></tr>
+      <tr><td>3</td><td>Exactamente tres géneros, incluidos Comedy y Romance</td><td><code>$size</code> y <code>$all</code></td><td>Wild and Woolly, For Heaven's Sake y City Lights, entre otras</td></tr>
+      <tr><td>4</td><td>Sin clasificación, UNRATED o NOT RATED</td><td><code>$or</code>, <code>$exists</code> y <code>$in</code></td><td>Primero aparecen clásicas del cine mudo como Gertie the Dinosaur</td></tr>
+      <tr><td>5</td><td>Títulos que empiezan por The y terminan en Man</td><td>Expresión regular <code>/^The.*Man$/i</code></td><td>También entran The Guardsman y The Devil Is a Woman, porque terminan en «man»</td></tr>
+    </tbody>
+  </table>
+  <div class="callout callout--note">
+    <p class="callout__title">Para tener en cuenta</p>
+    <p>
+      En MongoDB, buscar un valor sobre un campo que es un arreglo (<code>genres</code>, <code>cast</code>) comprueba si algún elemento coincide. Por eso
+      <code>directors: { $ne: "Steven Spielberg" }</code> descarta también las películas codirigidas por él.
+    </p>
+  </div>
+</section>
+
+<section id="parte-b">
+  <h2>Parte B · Agregación</h2>
+  <table class="tbl">
+    <thead><tr><th>Punto</th><th>Enunciado</th><th>Etapas principales</th><th>Resultado</th></tr></thead>
+    <tbody>
+      <tr><td>6</td><td>Estadísticas por género (más de 500 películas)</td><td><code>$match</code>, <code>$unwind</code>, <code>$group</code>, <code>$match</code>, <code>$project</code></td><td>Documentary encabeza: 1.824 películas y promedio de 7,37; luego History (7,17) y War (7,13)</td></tr>
+      <tr><td>7</td><td>Top 5 de directores con películas de rating 7,5 o más</td><td><code>$unwind</code>, <code>$group</code> con <code>$push</code>, <code>$slice</code></td><td>Scorsese (20), Miyazaki (17), Wyler (17), Bergman (16) y Spielberg (15)</td></tr>
+      <tr><td>8</td><td>Películas por década desde 1950</td><td><code>$floor</code>, <code>$divide</code>, <code>$multiply</code>, <code>$concat</code></td><td>De 617 películas en los 1950s a 7.196 en los 2000s</td></tr>
+      <tr><td>9</td><td>Top 10 de películas más comentadas</td><td><code>$group</code>, <code>$sort</code>, <code>$limit</code>, <code>$lookup</code></td><td>El <code>$lookup</code> va al final: se ejecuta 10 veces y no 21.349</td></tr>
+      <tr><td>10</td><td>Usuarios con más de 250 comentarios</td><td><code>$group</code> con <code>$min</code> y <code>$max</code>, <code>$match</code></td><td>7 usuarios; el primero es roger_ashton-griffiths, con 277 comentarios</td></tr>
+    </tbody>
+  </table>
+  <div class="callout callout--note">
+    <p class="callout__title">Ojo con los datos</p>
+    <p>
+      En <code>sample_mflix</code> hay campos con valores vacíos o de otro tipo: <code>imdb.rating</code> a veces viene vacío y <code>year</code> a veces es texto.
+      Por eso varios pipelines filtran con <code>$type: "number"</code> antes de agrupar. Filtrar antes de <code>$unwind</code> da el mismo resultado y desenrolla menos documentos.
+    </p>
+  </div>
+  <figure class="code">
+    <figcaption>Punto 6 · Estadísticas por género</figcaption>
+<pre><code data-mql>db.movies.aggregate([
+  { $match: { "imdb.rating": { $type: "number" } } },
+  { $unwind: "$genres" },
+  { $group: { _id: "$genres", totalPeliculas: { $sum: 1 },
+              promedioRating: { $avg: "$imdb.rating" }, ratingMaximo: { $max: "$imdb.rating" } } },
+  { $match: { totalPeliculas: { $gt: 500 } } },
+  { $project: { _id: 0, genero: "$_id", totalPeliculas: 1,
+                promedioRating: { $round: ["$promedioRating", 2] }, ratingMaximo: 1 } },
+  { $sort: { promedioRating: -1 } }
+]);</code></pre>
+  </figure>
+</section>
+
+<section id="parte-c">
+  <h2>Parte C · Escritura e índices</h2>
+  <table class="tbl">
+    <thead><tr><th>Punto</th><th>Enunciado</th><th>Operación</th><th>Resultado</th></tr></thead>
+    <tbody>
+      <tr><td>11</td><td>Crear la colección <code>peliculas_pareja</code> con las películas de 2015 y una categoría por rating</td><td><code>$project</code> con <code>$switch</code> y <code>$out</code></td><td>432 películas: 139 Alta (7,5 o más), 231 Media (6 o más) y 62 Baja</td></tr>
+      <tr><td>12</td><td>Marcar como revisadas las de categoría Media y subir su rating 0,1</td><td><code>updateMany</code> con <code>$set</code> e <code>$inc</code></td><td><code>matchedCount</code> y <code>modifiedCount</code> de 231</td></tr>
+      <tr><td>13</td><td>Eliminar las de categoría Baja</td><td><code>deleteMany</code></td><td><code>deletedCount</code> de 62; quedan 0 películas Baja</td></tr>
+      <tr><td>14</td><td>Comparar el plan de la consulta del punto 1 antes y después de un índice</td><td><code>explain("executionStats")</code> e índice compuesto</td><td>De <code>COLLSCAN</code> a <code>IXSCAN</code>; ver la tabla</td></tr>
+    </tbody>
+  </table>
+  <p>
+    En el punto 11 se filtran solo los ratings numéricos. Un valor vacío se compara como mayor que cualquier número y quedaría
+    clasificado como «Alta». En el punto 12, valores como 7,3999999999999995 son el error normal de los decimales en <code>Double</code>.
+  </p>
+  <h3>Punto 14 · El índice según la regla ESR</h3>
+  <p>
+    El índice <code>{ genres: 1, "imdb.rating": -1, year: 1 }</code> sigue la regla ESR: primero la igualdad (<code>genres</code>), luego el campo de orden
+    (<code>imdb.rating</code>) y al final el rango (<code>year</code>). Así el índice entrega las películas ya ordenadas por rating y desaparece la etapa <code>SORT</code>.
+  </p>
+  <table class="tbl">
+    <thead><tr><th>Métrica</th><th>Sin índice</th><th>Con índice ESR</th></tr></thead>
+    <tbody>
+      <tr><td>Etapa del plan ganador</td><td><code>SORT</code> sobre <code>COLLSCAN</code></td><td><code>FETCH</code> sobre <code>IXSCAN</code> (sin <code>SORT</code>)</td></tr>
+      <tr><td><code>totalDocsExamined</code></td><td>21.349</td><td>10</td></tr>
+      <tr><td><code>totalKeysExamined</code></td><td>0</td><td>20</td></tr>
+      <tr><td><code>nReturned</code></td><td>10</td><td>10</td></tr>
+      <tr><td><code>executionTimeMillis</code></td><td>21</td><td>1</td></tr>
+    </tbody>
+  </table>
+  <p>
+    Las 20 claves examinadas frente a 10 documentos leídos muestran que MongoDB descartó los años fuera del rango 2000 a 2010 usando solo el índice, sin leer esos documentos.
+    Al final del script el índice se elimina.
+  </p>
+</section>
+
+<section id="parte-d">
+  <h2>Parte D · Modelado con patrones de diseño</h2>
+  <p>
+    En esta parte se diseñó el modelo de dos casos, se cargaron documentos de ejemplo en la base <code>taller_parteD</code>, se crearon los índices y se
+    comprobó con <code>explain</code> que las consultas de negocio usan índice. El informe explica, para cada patrón, qué pasaría si no se aplicara.
+  </p>
+
+  <h3>Punto 15 · Caso 1: plataforma de domicilios</h3>
+  <p>
+    El pedido guarda una copia del plato, el precio y los datos del restaurante del momento de la compra, y el restaurante guarda solo sus 10 reseñas más recientes con
+    la calificación ya calculada. Así el historial de pedidos y la ficha del restaurante se resuelven leyendo una sola colección, sin <code>$lookup</code>. El modelo tiene 6
+    colecciones (clientes, pedidos, restaurantes, repartidores, productos y reseñas).
+  </p>
+  <figure class="diagram diagram--light">
+    <img src="evidencias/nosql/parteD-caso1-modelo.png" alt="Modelo del caso de domicilios: seis colecciones con sus referencias y copias" loading="lazy" width="1344" height="664" />
+    <figcaption>Figura 1 · Modelo del caso 1. Cada flecha sale de la colección que guarda la referencia.</figcaption>
+  </figure>
+  <table class="tbl">
+    <thead><tr><th>Patrón</th><th>Dónde se aplica</th><th>Por qué</th></tr></thead>
+    <tbody>
+      <tr><td>Extended Reference</td><td>Datos de cliente, restaurante, repartidor e ítems copiados en <code>pedidos</code></td><td>El historial muestra restaurante, plato y precio sin <code>$lookup</code>. Copiar los ítems es además una regla de negocio: el precio pagado no cambia si el menú cambia.</td></tr>
+      <tr><td>Subset</td><td><code>restaurantes.resenasRecientes</code> (10) y colección <code>resenas</code></td><td>La ficha solo muestra las 10 reseñas más recientes. Embeber 50.000 reseñas de unos 300 bytes acercaría el documento a unos 15 MB, cerca del límite de 16 MB.</td></tr>
+      <tr><td>Computed</td><td><code>calificacion</code>, <code>estadisticas</code> y <code>pedidos.total</code></td><td>Se leen en cada visita y solo se escriben cuando llega una reseña o un pedido.</td></tr>
+      <tr><td>Attribute</td><td><code>productos.atributos</code> (pares k/v)</td><td>Cada plato tiene atributos distintos (tamaño, picante, vegano, calorías) y un solo índice compuesto sirve para filtrar por cualquiera.</td></tr>
+      <tr><td>Embebido y referencia</td><td>Direcciones embebidas en <code>clientes</code>; menú y reseñas referenciados</td><td>Las direcciones son pocas y se leen con el cliente; el menú y las reseñas crecen y se consultan aparte.</td></tr>
+    </tbody>
+  </table>
+  <p>
+    <strong>Consulta (a):</strong> pedidos de un cliente en el último mes con el total pagado. Un <code>$facet</code> devuelve en una sola respuesta el listado y el resumen:
+    3 pedidos y 167.100 COP pagados, y el pedido cancelado y el de septiembre quedan fuera. Se examinan 4 documentos y se devuelven 3 con <code>IXSCAN</code>.
+  </p>
+  <p>
+    <strong>Consulta (b):</strong> top 5 de restaurantes mejor calificados de Bogotá, con un mínimo de 50 reseñas para que un restaurante con pocas no encabece el ranking. Se examinan
+    5 documentos y se devuelven 5, porque el índice ya entrega los restaurantes ordenados. Una consulta extra muestra el patrón Attribute: los platos veganos con picante hasta 2.
+  </p>
+
+  <h3>Punto 16 · Caso 2: calidad del aire en Bogotá</h3>
+  <p>
+    Cada documento de <code>lecturas_hora</code> agrupa las 60 lecturas de un sensor en una hora y trae su resumen ya calculado. Las 288.000 lecturas diarias
+    de la ciudad (200 sensores por 1.440 minutos) quedan en 4.800 documentos por día, 60 veces menos, y el tablero lee solo los resúmenes. El modelo tiene 3 colecciones:
+    <code>sensores</code>, <code>lecturas_hora</code> y <code>alertas</code>.
+  </p>
+  <figure class="diagram diagram--light">
+    <img src="evidencias/nosql/parteD-caso2-modelo.png" alt="Modelo del caso de calidad del aire: sensores, lecturas por hora y alertas" loading="lazy" width="1344" height="600" />
+    <figcaption>Figura 2 · Modelo del caso 2: de la lectura al bucket, la alerta y el tablero.</figcaption>
+  </figure>
+  <table class="tbl">
+    <thead><tr><th>Patrón</th><th>Dónde se aplica</th><th>Por qué</th></tr></thead>
+    <tbody>
+      <tr><td>Bucket</td><td><code>lecturas_hora</code>: 60 lecturas por documento</td><td>Las lecturas llegan en orden y se consultan por rango de tiempo. Sin él habría unos 105 millones de documentos al año; con buckets, unos 1,75 millones.</td></tr>
+      <tr><td>Computed</td><td><code>resumen</code> (n, suma, mínimo y máximo por variable) y <code>alertasPm25</code></td><td>El tablero lee promedios horarios todo el tiempo. Se guardan la suma y n para que el promedio de varios sensores sea exacto: suma de sumas sobre suma de n.</td></tr>
+      <tr><td>Schema Versioning</td><td><code>schemaVersion</code> en <code>sensores</code> y <code>lecturas_hora</code></td><td>Los sensores nuevos (AQ-300) agregan CO₂ y llevan la versión 2; los históricos siguen en versión 1 sin migrar.</td></tr>
+      <tr><td>Extended Reference</td><td><code>localidad</code> copiada en cada bucket y cada alerta</td><td>El tablero agrupa por localidad y un sensor no cambia de localidad, así que se evita el <code>$lookup</code>.</td></tr>
+    </tbody>
+  </table>
+  <p>
+    La carga simula un día completo para 3 sensores (dos en Kennedy y uno en Chapinero): 4.320 lecturas, una por minuto, cada una con un <code>upsert</code>.
+    El resultado son 72 buckets (3 sensores por 24 horas) y 144 minutos en alerta, todos en Kennedy.
+  </p>
+  <figure class="code">
+    <figcaption>Punto 16 · Una lectura por minuto: Bucket y Computed en un solo upsert</figcaption>
+<pre><code data-mql>db.lecturas_hora.updateOne(
+  { sensorId: "SEN-KEN-014", inicio: ISODate("2026-11-03T12:00:00Z") },
+  { $push: { lecturas: l },
+    $inc: { nLecturas: 1, "resumen.pm25.n": 1, "resumen.pm25.suma": l.pm25,
+             alertasPm25: l.pm25 > 37 ? 1 : 0 },
+    $min: { "resumen.pm25.min": l.pm25 },
+    $max: { "resumen.pm25.max": l.pm25 },
+    $setOnInsert: { localidad: "Kennedy", schemaVersion: 1, fin: ISODate("2026-11-03T13:00:00Z") } },
+  { upsert: true }
+);</code></pre>
+  </figure>
+  <p>
+    <strong>Consulta (a):</strong> promedio horario de PM2.5 de una localidad en un día. El pico en Kennedy es a las 07:00, con 37,4 µg/m³ de promedio y 44,5 de máximo, por encima
+    del umbral de 37. No hace falta <code>$unwind</code>, porque se leen solo los resúmenes. Se examinan 48 buckets y se devuelven 48 (2 sensores por 24 horas).
+  </p>
+  <p>
+    <strong>Consulta (b):</strong> sensores con alertas en la última semana. SEN-KEN-014 tuvo 127 minutos en alerta repartidos en 6 horas (máximo 44,5) y SEN-KEN-022 tuvo 17 minutos en
+    2 horas (máximo 39,8). Un índice parcial solo contiene las horas con alerta, así que se examinan y devuelven 8 y no se recorren las otras 64. La consulta extra muestra el Schema Versioning:
+    el CO₂ promedio (427 ppm) solo se calcula para los buckets de versión 2.
+  </p>
+</section>
+
+<section id="archivos">
+  <h2>Archivos del taller</h2>
+  <table class="tbl">
+    <thead><tr><th>Archivo</th><th>Contenido</th></tr></thead>
+    <tbody>
+      <tr><td><a href="evidencias/nosql/taller-mql-informe.pdf" target="_blank" rel="noopener">Informe del taller (PDF, 35 págs.)</a></td><td>Los 16 puntos con consulta, captura y explicación</td></tr>
+      <tr><td><a href="evidencias/nosql/taller-mql-modelo-parteD.pdf" target="_blank" rel="noopener">Modelo de la parte D (PDF, 13 págs.)</a></td><td>Diagramas, patrones, índices y consultas de los dos casos</td></tr>
+      <tr><td><a href="evidencias/nosql/taller-mql-puntos-1-a-16.js" download>Script con los 16 puntos (.js)</a></td><td>Un bloque comentado por punto; se ejecuta con <code>load()</code> en mongosh</td></tr>
+      <tr><td><a href="evidencias/nosql/taller-mql-anexos-parteD.zip" download>Documentos de ejemplo (.zip)</a></td><td>JSON de ambos casos, versiones 1 y 2 de los buckets y de los sensores</td></tr>
+    </tbody>
+  </table>
+  <p>
+    Las colecciones <code>peliculas_pareja</code> y <code>taller_parteD</code> se crean al ejecutar el script; no modifican las colecciones originales de <code>sample_mflix</code>
+    (el índice del punto 14 se elimina al final).
+  </p>
+</section>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p>&copy; 2026 David Felipe Bejarano Montes · Ingeniería de Sistemas, Universidad El Bosque</p>
+  </footer>
+  <script src="investigacion.js"></script>
+</body>
+</html>
